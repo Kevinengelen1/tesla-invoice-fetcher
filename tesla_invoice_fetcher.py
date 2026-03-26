@@ -366,6 +366,7 @@ def send_email(subject: str, body: str, attachments: list[Path]) -> None:
 def run_fetcher() -> list[Path]:
     """Run the invoice fetcher. Returns list of newly downloaded files."""
     log.info("=== Tesla Invoice Fetcher started ===")
+    log.info("Invoice name pattern: %s", INVOICE_NAME_PATTERN)
 
     if not CLIENT_ID:
         raise RuntimeError("TESLA_CLIENT_ID not set. Check your .env file.")
