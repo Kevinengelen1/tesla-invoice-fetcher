@@ -149,6 +149,7 @@
                  transition: transform .3s cubic-bezier(.175,.885,.32,1.275); white-space: nowrap; }
         .toast.show { transform: translateX(-50%) translateY(0); }
         .toast.error { background: #dc2626; }
+        .toast.warn  { background: #b45309; }
 
         /* Modal */
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45);
@@ -438,7 +439,7 @@ async function saveField(key) {
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.error || 'Save failed');
 
-        showToast('Saved');
+        showToast(data.warning ? `Saved (warning: ${data.warning})` : 'Saved', data.warning ? 'warn' : '');
         cancelEdit(key);
         cfg = await fetch('/api/config').then(r => r.json());
         render();
@@ -457,7 +458,7 @@ let toastTimer;
 function showToast(msg, type = '') {
     const el = document.getElementById('toast');
     el.textContent = msg;
-    el.className = 'toast show' + (type === 'error' ? ' error' : '');
+    el.className = 'toast show' + (type === 'error' ? ' error' : type === 'warn' ? ' warn' : '');
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
 }

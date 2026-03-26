@@ -862,8 +862,12 @@ def api_config_save():
         else:
             os.environ.pop(key, None)
 
+    env_write_error = None
     if updates:
-        _update_env_file(updates)
+        try:
+            _update_env_file(updates)
+        except Exception as e:
+            env_write_error = str(e)
 
     # Refresh in-memory globals that were captured at startup
     global _CLIENT_ID, _CLIENT_SECRET, _TESLA_EMAIL
@@ -876,7 +880,10 @@ def api_config_save():
         with _oidc_lock:
             _oidc_discovery_cache.clear()
 
-    return jsonify({"updated": list(updates.keys())})
+    result: dict = {"updated": list(updates.keys())}
+    if env_write_error:
+        result["warning"] = f"Settings applied to running process but could not be saved to .env: {env_write_error}"
+    return jsonify(result)
 
 
 if __name__ == "__main__":
