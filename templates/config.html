@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Settings — Tesla Invoice Fetcher</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23e82127'/%3E%3Ctext x='16' y='23' text-anchor='middle' font-family='Arial,sans-serif' font-weight='900' font-size='20' fill='white'%3ET%3C/text%3E%3C/svg%3E">
     <style>
         :root {
             --red:    #e82127;
@@ -37,9 +38,16 @@
         .nav-link:hover   { color: #fff; background: rgba(255,255,255,.06); }
         .nav-link.active  { color: #fff; background: rgba(255,255,255,.1); }
         .topbar-spacer { flex: 1; }
-        .version-badge { font-size: 11px; font-weight: 600; color: #4b5563;
-                         background: #1f2937; padding: 3px 9px; border-radius: 20px;
+        .version-badge { font-size: 11px; font-weight: 600; color: #e5e7eb;
+                         background: #374151; padding: 3px 9px; border-radius: 20px;
                          letter-spacing: .3px; white-space: nowrap; }
+
+        /* Hamburger menu */
+        .menu-toggle { display: none; background: none; border: 1px solid #2f2f2f; border-radius: 7px;
+                       width: 30px; height: 30px; cursor: pointer; color: #9ca3af;
+                       align-items: center; justify-content: center;
+                       transition: all .15s; flex-shrink: 0; padding: 0; }
+        .menu-toggle:hover { color: #fff; border-color: #4b5563; background: rgba(255,255,255,.06); }
 
         /* Layout */
         .container { max-width: 1200px; margin: 0 auto; padding: 24px 20px 64px;
@@ -254,7 +262,19 @@
             .cfg-label { min-width: 100%; }
             .edit-btn { opacity: 1; }
             .topbar-title { display: none; }
+            .topbar-div.desktop-only { display: none; }
+            .menu-toggle { display: flex; }
+            .topbar-nav { display: none; position: absolute; top: 54px; left: 0; right: 0;
+                          flex-direction: column; background: #111; padding: 8px 16px;
+                          border-bottom: 1px solid #2f2f2f; gap: 2px; z-index: 30; }
+            .topbar-nav.open { display: flex; }
+            .nav-link { padding: 10px 12px; font-size: 14px; }
+            .version-badge { font-size: 10px; padding: 2px 7px; }
+            .topbar-user-name { max-width: 80px; }
+            .btn-logout { font-size: 11px; padding: 4px 8px; }
         }
+        [data-theme="dark"] .topbar-nav { background: #010409; border-bottom-color: #21262d; }
+        [data-theme="dark"] .version-badge { color: #8b949e; background: #21262d; }
     </style>
     <script>(function(){const t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t);})()</script>
 </head>
@@ -263,8 +283,11 @@
 <header class="topbar">
     <a class="topbar-logo" href="/">T</a>
     <span class="topbar-title">Invoice Fetcher</span>
-    <div class="topbar-div"></div>
-    <nav class="topbar-nav">
+    <button class="menu-toggle" id="menuToggle" onclick="toggleMenu()" aria-label="Toggle menu">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <div class="topbar-div desktop-only"></div>
+    <nav class="topbar-nav" id="topbarNav">
         <a class="nav-link" href="/">Dashboard</a>
         <a class="nav-link active" href="/config">Settings</a>
     </nav>
@@ -332,6 +355,16 @@ function toggleTheme() {
     updateThemeIcon(next);
 }
 updateThemeIcon(document.documentElement.getAttribute('data-theme') || 'light');
+
+/* ---- Mobile menu ---- */
+function toggleMenu() {
+    document.getElementById('topbarNav').classList.toggle('open');
+}
+document.addEventListener('click', function(e) {
+    const nav = document.getElementById('topbarNav');
+    const btn = document.getElementById('menuToggle');
+    if (nav && !nav.contains(e.target) && !btn.contains(e.target)) nav.classList.remove('open');
+});
 
 /* ---- User info ---- */
 async function loadUser() {

@@ -18,6 +18,7 @@ from datetime import datetime
 from pathlib import Path
 
 import requests
+from cryptography.fernet import Fernet
 from dotenv import load_dotenv
 
 # Load config from AUTH_DIR if set (Docker volume), otherwise fall back to local .env
@@ -66,19 +67,36 @@ OWNERSHIP_BASE = "https://ownership.tesla.com"
 
 
 # ---------------------------------------------------------------------------
+# Token encryption
+# ---------------------------------------------------------------------------
+_ENCRYPTION_KEY_FILE = AUTH_DIR / ".token_key"
+
+
+def _get_encryption_key() -> bytes:
+    """Load or generate a Fernet encryption key for token storage."""
+    if _ENCRYPTION_KEY_FILE.exists():
+        return _ENCRYPTION_KEY_FILE.read_bytes().strip()
+    key = Fernet.generate_key()
+    _ENCRYPTION_KEY_FILE.parent.mkdir(parents=True, exist_ok=True)
+    _ENCRYPTION_KEY_FILE.write_bytes(key)
+    log.info("Generated new token encryption key.")
+    return key
+
+
+def _encrypt_tokens(data: dict) -> bytes:
+    return Fernet(_get_encryption_key()).encrypt(json.dumps(data).encode())
+
+
+def _decrypt_tokens(data: bytes) -> dict:
+    return json.loads(Fernet(_get_encryption_key()).decrypt(data).decode())
+
+
+# ---------------------------------------------------------------------------
 # Unified token storage
 #
-# tokens.json format:
-# {
-#   "fleet": {
-#     "access_token": "...", "refresh_token": "...",
-#     "token_type": "Bearer", "expires_at": 1774503357.0
-#   },
-#   "ownership": {
-#     "access_token": "...", "refresh_token": "...",
-#     "token_type": "Bearer", "expires_at": 1774503357.0
-#   }
-# }
+# tokens.json is now encrypted at rest using Fernet symmetric encryption.
+# The encryption key is stored in AUTH_DIR/.token_key — keep it safe!
+# Plain-text tokens.json files are auto-migrated to encrypted format.
 # ---------------------------------------------------------------------------
 def load_tokens() -> dict:
     """Load unified token file, auto-migrating from old format if needed."""
@@ -87,9 +105,15 @@ def load_tokens() -> dict:
         if migrated:
             return migrated
         return {}
-    raw = TOKEN_FILE.read_text().strip()
-    if not raw:
+    raw = TOKEN_FILE.read_bytes()
+    if not raw.strip():
         return {}
+    # Try decrypting first (new encrypted format)
+    try:
+        return _decrypt_tokens(raw)
+    except Exception:
+        pass
+    # Fall back to plain-text JSON (old format — will be re-encrypted on next save)
     try:
         data = json.loads(raw)
     except json.JSONDecodeError:
@@ -98,12 +122,15 @@ def load_tokens() -> dict:
     # Detect old flat format (fleet tokens at root level without "fleet" key)
     if "access_token" in data and "fleet" not in data:
         return _migrate_tokens()
+    # Auto-encrypt existing plain-text tokens
+    log.info("Migrating plain-text tokens to encrypted format.")
+    save_tokens(data)
     return data
 
 
 def save_tokens(tokens: dict) -> None:
     TOKEN_FILE.parent.mkdir(parents=True, exist_ok=True)
-    TOKEN_FILE.write_text(json.dumps(tokens, indent=2))
+    TOKEN_FILE.write_bytes(_encrypt_tokens(tokens))
 
 
 def _migrate_tokens() -> dict:
@@ -253,6 +280,41 @@ def api_headers(access_token: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Retry with exponential backoff for transient API errors
+# ---------------------------------------------------------------------------
+_RETRYABLE_STATUS = {429, 500, 502, 503, 504}
+_MAX_RETRIES = 3
+_BACKOFF_BASE = 2  # seconds
+
+
+def _request_with_retry(method: str, url: str, **kwargs) -> requests.Response:
+    """Make an HTTP request with retry logic for transient errors."""
+    timeout = kwargs.pop("timeout", 30)
+    for attempt in range(_MAX_RETRIES):
+        try:
+            resp = requests.request(method, url, timeout=timeout, **kwargs)
+            if resp.status_code not in _RETRYABLE_STATUS:
+                return resp
+            if attempt < _MAX_RETRIES - 1:
+                wait = _BACKOFF_BASE ** (attempt + 1)
+                retry_after = resp.headers.get("Retry-After")
+                if retry_after and retry_after.isdigit():
+                    wait = max(wait, int(retry_after))
+                log.warning("HTTP %d from %s, retrying in %ds...", resp.status_code, url, wait)
+                time.sleep(wait)
+            else:
+                return resp
+        except (requests.ConnectionError, requests.Timeout) as e:
+            if attempt < _MAX_RETRIES - 1:
+                wait = _BACKOFF_BASE ** (attempt + 1)
+                log.warning("%s for %s, retrying in %ds...", type(e).__name__, url, wait)
+                time.sleep(wait)
+            else:
+                raise
+    return resp  # unreachable but satisfies type checker
+
+
+# ---------------------------------------------------------------------------
 # Tracking – remember which invoices were already downloaded
 # ---------------------------------------------------------------------------
 def load_tracking() -> set:
@@ -273,7 +335,8 @@ def fetch_charging_history(access_token: str, vin: str) -> list[dict]:
     """Fetch Supercharger charging history via Fleet API."""
     _region = os.getenv("TESLA_REGION", "eu")
     _fleet_base = FLEET_API_BASES.get(_region, FLEET_API_BASES["eu"])
-    resp = requests.get(
+    resp = _request_with_retry(
+        "GET",
         f"{_fleet_base}/api/1/dx/charging/history",
         headers=api_headers(access_token),
         params={"vin": vin},
@@ -288,7 +351,8 @@ def download_invoice(access_token: str, content_id: str) -> tuple[bytes | None, 
     """Download an invoice PDF by contentId. Returns (pdf_bytes, filename)."""
     _region = os.getenv("TESLA_REGION", "eu")
     _fleet_base = FLEET_API_BASES.get(_region, FLEET_API_BASES["eu"])
-    resp = requests.get(
+    resp = _request_with_retry(
+        "GET",
         f"{_fleet_base}/api/1/dx/charging/invoice/{content_id}",
         headers=api_headers(access_token),
         timeout=30,
@@ -451,7 +515,8 @@ def run_fetcher() -> list[Path]:
 
             for vin in TESLA_VINS:
                 # Fetch subscription invoice list
-                resp = requests.get(
+                resp = _request_with_retry(
+                    "GET",
                     f"{OWNERSHIP_BASE}/mobile-app/subscriptions/invoices",
                     headers=owner_headers,
                     params={
@@ -471,7 +536,8 @@ def run_fetcher() -> list[Path]:
                         ownership = refresh_ownership_token()
                         owner_token = ownership["access_token"]
                         owner_headers = {"Authorization": f"Bearer {owner_token}"}
-                        resp = requests.get(
+                        resp = _request_with_retry(
+                            "GET",
                             f"{OWNERSHIP_BASE}/mobile-app/subscriptions/invoices",
                             headers=owner_headers,
                             params={
@@ -509,7 +575,8 @@ def run_fetcher() -> list[Path]:
                     log.info("Downloading subscription invoice %s (%s)", invoice_id, date_str)
 
                     # Download the PDF using the InvoiceId
-                    dl_resp = requests.get(
+                    dl_resp = _request_with_retry(
+                        "GET",
                         f"{OWNERSHIP_BASE}/mobile-app/documents/invoices/{invoice_id}",
                         headers=owner_headers,
                         params={

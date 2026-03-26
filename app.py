@@ -5,7 +5,9 @@ handle OAuth re-authorization for both Fleet API and Ownership API.
 """
 
 import base64
+import csv
 import hashlib
+import io
 import json
 import logging
 import os
@@ -18,7 +20,9 @@ from datetime import datetime
 from pathlib import Path
 
 import requests
-from flask import Flask, jsonify, redirect, render_template, request, send_from_directory, session
+from flask import Flask, Response, jsonify, redirect, render_template, request, send_from_directory, session
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from dotenv import load_dotenv
 
 # Load config from AUTH_DIR if set (Docker volume), otherwise fall back to local .env
@@ -76,6 +80,14 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 # Flask session secret — set SECRET_KEY in .env for persistence across restarts
 app.secret_key = os.getenv("SECRET_KEY") or secrets.token_hex(32)
 
+# Rate limiter — defaults to 200/day, 50/hour per IP
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://",
+)
+
 # Auth configuration (used by the in-app OAuth flows)
 _CLIENT_ID = os.getenv("TESLA_CLIENT_ID", "")
 _CLIENT_SECRET = os.getenv("TESLA_CLIENT_SECRET", "")
@@ -132,6 +144,7 @@ def execute_fetcher():
         run_state["running"] = False
         run_state["last_run"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         run_state["last_logs"] = log_capture.get_and_clear()
+        _invalidate_invoice_cache()
 
 
 # ---------------------------------------------------------------------------
@@ -411,9 +424,9 @@ def oidc_callback():
     }
     session["oidc_id_token"] = tokens.get("id_token", "")
     next_url = request.args.get("next") or "/"
-    # Basic open-redirect protection
+    # Open-redirect protection: only allow relative paths on this same host
     parsed = urllib.parse.urlparse(next_url)
-    if parsed.netloc and parsed.netloc != request.host:
+    if parsed.scheme or parsed.netloc:
         next_url = "/"
     return redirect(next_url)
 
@@ -455,6 +468,7 @@ def config_page():
 
 
 @app.route("/api/run", methods=["POST"])
+@limiter.limit("5 per minute")
 def api_run():
     with run_lock:
         if run_state["running"]:
@@ -475,29 +489,111 @@ def api_status():
     })
 
 
+# ---------------------------------------------------------------------------
+# Health check
+# ---------------------------------------------------------------------------
+@app.route("/health")
+@limiter.exempt
+def health():
+    tokens = load_tokens()
+    fleet_ok = bool(tokens.get("fleet", {}).get("access_token"))
+    ownership_ok = bool(tokens.get("ownership", {}).get("access_token"))
+    healthy = fleet_ok  # Fleet API is the minimum requirement
+    return jsonify({
+        "status": "healthy" if healthy else "degraded",
+        "fleet_token": "present" if fleet_ok else "missing",
+        "ownership_token": "present" if ownership_ok else "missing",
+        "version": APP_VERSION,
+    }), 200 if healthy else 503
+
+
+# ---------------------------------------------------------------------------
+# Invoice cache (in-memory with TTL)
+# ---------------------------------------------------------------------------
+_invoice_cache: dict = {"data": None, "expires": 0.0}
+_INVOICE_CACHE_TTL = 30  # seconds
+
+
+def _load_invoices_cached() -> list[dict]:
+    """Return invoice list from cache or scan filesystem."""
+    now = time.time()
+    if _invoice_cache["data"] is not None and now < _invoice_cache["expires"]:
+        return _invoice_cache["data"]
+    invoices = []
+    if OUTPUT_DIR.exists():
+        for category_dir in sorted(OUTPUT_DIR.iterdir()):
+            if not category_dir.is_dir():
+                continue
+            category = category_dir.name
+            for pdf in sorted(category_dir.glob("*.pdf"), reverse=True):
+                stat = pdf.stat()
+                invoices.append({
+                    "name": pdf.name,
+                    "category": category,
+                    "size": stat.st_size,
+                    "modified": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M"),
+                    "path": f"{category}/{pdf.name}",
+                })
+    _invoice_cache["data"] = invoices
+    _invoice_cache["expires"] = now + _INVOICE_CACHE_TTL
+    return invoices
+
+
+def _invalidate_invoice_cache() -> None:
+    _invoice_cache["data"] = None
+    _invoice_cache["expires"] = 0.0
+
+
 @app.route("/api/invoices")
 def api_invoices():
-    invoices = []
-    if not OUTPUT_DIR.exists():
-        return jsonify(invoices)
-    for category_dir in sorted(OUTPUT_DIR.iterdir()):
-        if not category_dir.is_dir():
-            continue
-        category = category_dir.name
-        for pdf in sorted(category_dir.glob("*.pdf"), reverse=True):
-            invoices.append({
-                "name": pdf.name,
-                "category": category,
-                "size": pdf.stat().st_size,
-                "modified": datetime.fromtimestamp(pdf.stat().st_mtime).strftime("%Y-%m-%d %H:%M"),
-                "path": f"{category}/{pdf.name}",
-            })
+    invoices = _load_invoices_cached()
+    # Pagination: ?page=1&per_page=50 (optional, returns all if omitted)
+    page = request.args.get("page", type=int)
+    per_page = request.args.get("per_page", 50, type=int)
+    per_page = min(max(per_page, 1), 500)
+    if page is not None:
+        page = max(page, 1)
+        total = len(invoices)
+        start = (page - 1) * per_page
+        end = start + per_page
+        return jsonify({
+            "invoices": invoices[start:end],
+            "page": page,
+            "per_page": per_page,
+            "total": total,
+            "pages": (total + per_page - 1) // per_page,
+        })
     return jsonify(invoices)
 
 
 @app.route("/invoices/<path:filepath>")
 def serve_invoice(filepath):
     return send_from_directory(OUTPUT_DIR, filepath)
+
+
+@app.route("/preview/<path:filepath>")
+def preview_invoice(filepath):
+    """Serve an invoice PDF inline for in-browser preview."""
+    return send_from_directory(
+        OUTPUT_DIR, filepath, mimetype="application/pdf",
+        download_name=None,
+    )
+
+
+@app.route("/api/invoices/export.csv")
+def api_invoices_csv():
+    """Export all invoices as a CSV file."""
+    invoices = _load_invoices_cached()
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["Name", "Category", "Size (bytes)", "Modified", "Path"])
+    for inv in invoices:
+        writer.writerow([inv["name"], inv["category"], inv["size"], inv["modified"], inv["path"]])
+    return Response(
+        buf.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=tesla_invoices.csv"},
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -564,6 +660,7 @@ def api_auth_refresh():
 # Routes: Fleet API re-auth (PKCE OAuth2 with auto-redirect callback)
 # ---------------------------------------------------------------------------
 @app.route("/auth/fleet/start", methods=["POST"])
+@limiter.limit("10 per minute")
 def fleet_auth_start():
     verifier, challenge = _make_pkce()
     state = secrets.token_urlsafe(32)
@@ -619,6 +716,7 @@ def fleet_auth_callback():
 
 
 @app.route("/auth/fleet/submit", methods=["POST"])
+@limiter.limit("10 per minute")
 def fleet_auth_submit():
     """Accept the full redirect URL pasted by the user (fallback for non-auto-redirect setups)."""
     callback_url = (request.json or {}).get("callback_url", "").strip()
@@ -657,6 +755,7 @@ def fleet_auth_submit():
 # Routes: Ownership API re-auth
 # ---------------------------------------------------------------------------
 @app.route("/auth/ownership/start", methods=["POST"])
+@limiter.limit("10 per minute")
 def ownership_auth_start():
     if not _TESLA_EMAIL:
         return jsonify({"error": "TESLA_EMAIL not configured in .env"}), 400
@@ -669,6 +768,7 @@ def ownership_auth_start():
 
 
 @app.route("/auth/ownership/submit", methods=["POST"])
+@limiter.limit("10 per minute")
 def ownership_auth_submit():
     callback_url = (request.json or {}).get("callback_url", "").strip()
     if not callback_url:
@@ -845,15 +945,53 @@ def api_invoices_rename():
 
     to_rename = sum(1 for r in results if r["changed"])
     renamed = to_rename if not dry_run else 0
+    if renamed:
+        _invalidate_invoice_cache()
     return jsonify({"results": results, "errors": errors, "to_rename": to_rename, "renamed": renamed})
 
 
 @app.route("/api/config", methods=["POST"])
+@limiter.limit("20 per minute")
 def api_config_save():
     data = request.get_json(force=True) or {}
     bad = [k for k in data if k not in _EDITABLE_KEYS]
     if bad:
         return jsonify({"error": f"Non-editable key(s): {bad}"}), 400
+
+    # Input validation
+    validation_errors = []
+    if "SMTP_PORT" in data:
+        port_val = str(data["SMTP_PORT"]).strip()
+        if port_val and (not port_val.isdigit() or not 1 <= int(port_val) <= 65535):
+            validation_errors.append("SMTP_PORT must be a number between 1 and 65535")
+    if "TESLA_VINS" in data:
+        vins_val = str(data["TESLA_VINS"]).strip()
+        if vins_val:
+            for vin in vins_val.split(","):
+                vin = vin.strip()
+                if vin and (len(vin) != 17 or not vin.isalnum()):
+                    validation_errors.append(f"Invalid VIN format: {vin} (must be 17 alphanumeric characters)")
+    if "EMAIL_TO" in data:
+        email_val = str(data["EMAIL_TO"]).strip()
+        if email_val:
+            for addr in email_val.split(","):
+                addr = addr.strip()
+                if addr and not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", addr):
+                    validation_errors.append(f"Invalid email address: {addr}")
+    if "EMAIL_FROM" in data:
+        email_val = str(data["EMAIL_FROM"]).strip()
+        if email_val and not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email_val):
+            validation_errors.append(f"Invalid EMAIL_FROM address: {email_val}")
+    if "TESLA_REGION" in data:
+        region_val = str(data["TESLA_REGION"]).strip()
+        if region_val and region_val not in ("na", "eu", "cn"):
+            validation_errors.append("TESLA_REGION must be one of: na, eu, cn")
+    if "OIDC_ENABLED" in data:
+        oidc_val = str(data["OIDC_ENABLED"]).strip().lower()
+        if oidc_val and oidc_val not in ("", "0", "1", "true", "false", "yes", "no"):
+            validation_errors.append("OIDC_ENABLED must be one of: true, false, 1, 0, yes, no")
+    if validation_errors:
+        return jsonify({"error": "Validation failed", "details": validation_errors}), 400
 
     updates: dict[str, str] = {}
     for key, value in data.items():
