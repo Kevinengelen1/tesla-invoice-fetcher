@@ -409,6 +409,7 @@ def oidc_callback():
         "email": user_info.get("email", ""),
         "name": user_info.get("name") or user_info.get("preferred_username", ""),
     }
+    session["oidc_id_token"] = tokens.get("id_token", "")
     next_url = request.args.get("next") or "/"
     # Basic open-redirect protection
     parsed = urllib.parse.urlparse(next_url)
@@ -419,10 +420,13 @@ def oidc_callback():
 
 @app.route("/logout", methods=["GET", "POST"])
 def oidc_logout():
+    id_token = session.pop("oidc_id_token", "")
     session.pop("oidc_user", None)
     doc = _get_oidc_discovery()
     if doc and doc.get("end_session_endpoint"):
-        params = {"post_logout_redirect_uri": request.host_url.rstrip("/")}
+        params: dict = {"post_logout_redirect_uri": request.host_url.rstrip("/")}
+        if id_token:
+            params["id_token_hint"] = id_token
         return redirect(
             doc["end_session_endpoint"] + "?" + urllib.parse.urlencode(params)
         )

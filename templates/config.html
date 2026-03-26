@@ -273,7 +273,7 @@
     <span id="topbarUser" style="display:none;align-items:center;gap:8px">
         <div class="topbar-div"></div>
         <span class="topbar-user-name" id="topbarUserName"></span>
-        <button class="btn-logout" onclick="fetch('/logout',{method:'POST'}).then(()=>location.href='/')">Sign out</button>
+        <button class="btn-logout" onclick="window.location.href='/logout'">Sign out</button>
     </span>
     <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle dark mode">
         <svg id="themeIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
