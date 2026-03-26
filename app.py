@@ -33,7 +33,7 @@ from tesla_invoice_fetcher import (
     load_tokens, save_tokens, refresh_fleet_token, refresh_ownership_token,
 )
 
-APP_VERSION = "0.0.2"
+APP_VERSION = "0.0.3"
 
 # Keys that the web UI is allowed to edit
 _EDITABLE_KEYS = {
