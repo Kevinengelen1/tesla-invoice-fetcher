@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tesla Invoice Fetcher</title>
+    <style>
+        :root {
+            --red:    #e82127;
+            --red-dk: #c01b21;
+            --bg:     #f0f0f2;
+            --card:   #ffffff;
+            --border: #e5e7eb;
+            --text:   #111827;
+            --muted:  #6b7280;
+            --light:  #9ca3af;
+            --radius: 14px;
+            --shadow: 0 1px 3px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.04);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+               background: var(--bg); color: var(--text); min-height: 100vh; }
+
+        /* -- Header -- */
+        .topbar { background: #111; color: #fff; height: 54px; padding: 0 24px;
+                  display: flex; align-items: center; gap: 14px;
+                  position: sticky; top: 0; z-index: 20;
+                  border-bottom: 1px solid rgba(255,255,255,.05); }
+        .topbar-logo { width: 30px; height: 30px; background: var(--red); border-radius: 7px;
+                       display: flex; align-items: center; justify-content: center;
+                       font-size: 16px; font-weight: 900; color: #fff; flex-shrink: 0; }
+        .topbar-title { font-size: 15px; font-weight: 600; letter-spacing: -.2px; }
+        .topbar-div   { width: 1px; height: 16px; background: #2f2f2f; }
+        .topbar-sub   { font-size: 13px; color: #6b7280; }
+
+        /* -- Layout -- */
+        .container { max-width: 840px; margin: 0 auto; padding: 28px 20px 64px;
+                     display: flex; flex-direction: column; gap: 14px; }
+
+        /* -- Cards -- */
+        .card { background: var(--card); border-radius: var(--radius);
+                box-shadow: var(--shadow); border: 1px solid var(--border); }
+        .card-hd { display: flex; align-items: center; justify-content: space-between;
+                   padding: 14px 20px; border-bottom: 1px solid var(--border); }
+        .card-body { padding: 18px 20px; }
+        .card-title { font-size: 11px; font-weight: 700; color: var(--light);
+                      text-transform: uppercase; letter-spacing: .9px; }
+
+        /* -- Buttons -- */
+        .btn { display: inline-flex; align-items: center; gap: 7px; padding: 10px 20px;
+               border: none; border-radius: 8px; font-size: 13px; font-weight: 600;
+               cursor: pointer; transition: all .15s; line-height: 1; white-space: nowrap; }
+        .btn-primary { background: var(--red); color: #fff; }
+        .btn-primary:hover:not(:disabled) { background: var(--red-dk);
+            box-shadow: 0 4px 12px rgba(232,33,39,.3); transform: translateY(-1px); }
+        .btn-primary:active:not(:disabled) { transform: none; box-shadow: none; }
+        .btn-primary:disabled { background: #e5e7eb; color: #9ca3af; cursor: not-allowed; }
+        .btn-outline { background: transparent; color: var(--muted); border: 1px solid var(--border);
+                       font-size: 12px; padding: 6px 13px; border-radius: 7px; }
+        .btn-outline:hover { background: #f9fafb; color: var(--text); border-color: #d1d5db; }
+
+        /* -- Status dots -- */
+        .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .dot-green  { background: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,.15); }
+        .dot-yellow { background: #f59e0b; box-shadow: 0 0 0 3px rgba(245,158,11,.15); }
+        .dot-red    { background: #ef4444; box-shadow: 0 0 0 3px rgba(239,68,68,.15); }
+        .dot-gray   { background: #d1d5db; }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+        .dot-blink  { animation: blink 1.4s ease-in-out infinite; }
+
+        /* -- Badges -- */
+        .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
+                 border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .badge-ok  { background: #ecfdf5; color: #065f46; }
+        .badge-err { background: #fef2f2; color: #991b1b; }
+        .badge-run { background: #fffbeb; color: #92400e; }
+
+        /* -- Auth rows -- */
+        .auth-row { display: flex; align-items: center; gap: 14px; padding: 14px 0; flex-wrap: wrap; }
+        .auth-row + .auth-row { border-top: 1px solid #f3f4f6; }
+        .auth-label  { font-size: 13px; font-weight: 600; min-width: 140px; }
+        .auth-status { display: flex; align-items: center; gap: 8px; font-size: 13px;
+                       color: var(--muted); flex: 1; }
+        .auth-expiry { font-size: 11px; color: var(--light); margin-left: 4px; }
+        .auth-both   { padding: 12px 0 16px; text-align: center; border-bottom: 1px solid #f3f4f6; }
+        .auth-both-sub { font-size: 12px; color: var(--light); margin-top: 8px; }
+
+        /* -- Auth flow -- */
+        .auth-flow { background: #f0f4ff; border: 1px solid #c7d5f8; border-radius: 10px;
+                     padding: 18px 20px; margin: 0 20px 16px; }
+        .auth-flow-title { font-size: 13px; font-weight: 700; color: #1e3a8a; margin-bottom: 14px; }
+        .step { display: flex; gap: 12px; margin-bottom: 10px; font-size: 13px;
+                line-height: 1.5; align-items: flex-start; }
+        .step-n { background: #1e3a8a; color: #fff; border-radius: 50%; min-width: 22px; height: 22px;
+                  display: flex; align-items: center; justify-content: center; font-size: 10px;
+                  font-weight: 800; flex-shrink: 0; margin-top: 1px; }
+        .url-box { background: #fff; border: 1px solid #c7d5f8; border-radius: 7px;
+                   padding: 10px 14px; margin: 8px 0 4px;
+                   font-size: 11px; font-family: ui-monospace,monospace;
+                   word-break: break-all; line-height: 1.6; }
+        .url-box a { color: #1e3a8a; }
+        .paste-row { display: flex; gap: 8px; margin-top: 10px; }
+        .paste-row input { flex: 1; padding: 9px 13px; border: 1px solid #c7d5f8; border-radius: 7px;
+                           font-size: 12px; font-family: ui-monospace,monospace; outline: none;
+                           background: #fff; transition: border .15s, box-shadow .15s; }
+        .paste-row input:focus { border-color: #3b5fc0; box-shadow: 0 0 0 3px rgba(30,58,138,.1); }
+        .flow-cancel { font-size: 12px; color: var(--light); cursor: pointer;
+                       margin-top: 10px; display: inline-block; }
+        .flow-cancel:hover { color: var(--red); }
+        code { background: #eef0f6; padding: 2px 5px; border-radius: 4px; font-size: 11px;
+               font-family: ui-monospace,monospace; }
+
+        /* -- Success banner -- */
+        .banner { padding: 12px 20px; font-size: 13px; font-weight: 600; display: flex;
+                  align-items: center; gap: 10px; border-bottom: 1px solid var(--border); }
+        .banner-ok  { background: #ecfdf5; color: #065f46; }
+
+        /* -- Run section -- */
+        .run-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+
+        /* -- Log -- */
+        .log-toggle { background: none; border: none; cursor: pointer; color: var(--light);
+                      padding: 4px; border-radius: 4px; display: flex; align-items: center;
+                      transition: color .15s; }
+        .log-toggle:hover { color: var(--muted); }
+        .log-toggle svg { transition: transform .2s; }
+        .log-body { padding: 0 20px 18px; }
+        .log-box { background: #0d1117; color: #c9d1d9; border-radius: 8px; padding: 14px 16px;
+                   font-family: "Cascadia Code","Fira Code",ui-monospace,monospace; font-size: 12px;
+                   line-height: 1.7; max-height: 280px; overflow-y: auto; white-space: pre-wrap;
+                   word-break: break-all; border: 1px solid #21262d; }
+        .log-box:empty::after { content: "No logs yet."; color: #3d444d; }
+
+        /* -- Invoice list -- */
+        .inv-count { font-size: 12px; color: var(--muted); background: #f3f4f6;
+                     padding: 2px 9px; border-radius: 20px; font-weight: 500; }
+        .inv-body  { padding: 20px; display: flex; flex-direction: column; gap: 24px; }
+        .inv-group-hd  { display: flex; align-items: center; justify-content: space-between;
+                         margin-bottom: 8px; }
+        .inv-group-lbl { font-size: 11px; font-weight: 700; color: var(--light);
+                         text-transform: uppercase; letter-spacing: .8px; }
+        .inv-group-cnt { font-size: 11px; color: var(--light); }
+        .inv-list { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+        .inv-row  { display: flex; align-items: center; gap: 14px; padding: 11px 16px;
+                    border-bottom: 1px solid #f3f4f6; transition: background .1s; }
+        .inv-row:last-child { border-bottom: none; }
+        .inv-row:hover { background: #fafafa; }
+        .inv-icon { color: #c4c9d4; flex-shrink: 0; }
+        .inv-main { flex: 1; min-width: 0; }
+        .inv-name { display: block; font-size: 13px; font-weight: 500; color: var(--text);
+                    text-decoration: none; white-space: nowrap; overflow: hidden;
+                    text-overflow: ellipsis; line-height: 1.3; }
+        .inv-name:hover { color: var(--red); }
+        .inv-meta { font-size: 11px; color: var(--light); margin-top: 2px; }
+        .btn-dl   { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+                    padding: 6px 12px; background: #f9fafb; border: 1px solid var(--border);
+                    border-radius: 7px; font-size: 12px; font-weight: 600; color: var(--muted);
+                    text-decoration: none; white-space: nowrap; transition: all .15s; }
+        .btn-dl:hover { background: #fff; color: var(--text); border-color: #d1d5db;
+                        box-shadow: 0 2px 6px rgba(0,0,0,.08); }
+        .empty-state { text-align: center; padding: 52px 24px; color: var(--light); }
+        .empty-icon  { font-size: 36px; margin-bottom: 12px; opacity: .4; }
+        .empty-text  { font-size: 13px; line-height: 1.6; }
+    </style>
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar-logo">T</div>
+    <span class="topbar-title">Invoice Fetcher</span>
+    <div class="topbar-div"></div>
+    <span class="topbar-sub">Supercharger & Subscription Invoices</span>
+</header>
+
+<div class="container">
+
+    <!-- -- Authorization -- -->
+    <div class="card">
+        <div class="card-hd"><span class="card-title">Authorization</span></div>
+        <div id="authBanner"></div>
+        <div class="card-body">
+            <div id="authRows">
+                <div class="auth-row"><span style="font-size:13px;color:var(--light)">Checking...</span></div>
+            </div>
+        </div>
+        <div class="auth-flow" id="fleetFlow" style="display:none">
+            <div class="auth-flow-title">Fleet API -- Re-authorization</div>
+            <div id="fleetFlowContent"></div>
+        </div>
+        <div class="auth-flow" id="ownershipFlow" style="display:none">
+            <div class="auth-flow-title">Ownership API -- Re-authorization</div>
+            <div id="ownershipFlowContent"></div>
+        </div>
+    </div>
+
+    <!-- -- Fetch -- -->
+    <div class="card">
+        <div class="card-hd"><span class="card-title">Fetch Invoices</span></div>
+        <div class="card-body">
+            <div class="run-row">
+                <button class="btn btn-primary" id="runBtn" onclick="runFetcher()">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21"/></svg>
+                    Run Now
+                </button>
+                <span id="statusText" style="font-size:13px;color:var(--muted)">Ready</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- -- Log -- -->
+    <div class="card">
+        <div class="card-hd">
+            <span class="card-title">Log Output</span>
+            <button class="log-toggle" id="logToggleBtn" onclick="toggleLog()" title="Toggle log">
+                <svg id="logChevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+        </div>
+        <div id="logSection" style="display:none">
+            <div class="log-body">
+                <div class="log-box" id="logBox"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- -- Invoices -- -->
+    <div class="card">
+        <div class="card-hd">
+            <span class="card-title">Invoices</span>
+            <span class="inv-count" id="invoiceCount" style="display:none"></span>
+        </div>
+        <div id="invoiceList">
+            <div class="empty-state">
+                <div class="empty-icon">&#x1F4C4;</div>
+                <div class="empty-text">Loading...</div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    let polling = null;
+    let logOpen = false;
+
+    // -- Log toggle --
+    function toggleLog(force) {
+        logOpen = force !== undefined ? force : !logOpen;
+        document.getElementById('logSection').style.display = logOpen ? '' : 'none';
+        document.getElementById('logChevron').style.transform = logOpen ? 'rotate(180deg)' : '';
+    }
+
+    // -- Fetcher --
+    async function runFetcher() {
+        const btn = document.getElementById('runBtn');
+        btn.disabled = true;
+        document.getElementById('logBox').textContent = '';
+        document.getElementById('statusText').innerHTML =
+            '<span class="badge badge-run"><span class="dot dot-yellow dot-blink"></span>Running...</span>';
+        toggleLog(true);
+        const resp = await fetch('/api/run', { method: 'POST' });
+        if (resp.status === 409) { btn.disabled = false; return; }
+        polling = setInterval(checkStatus, 1500);
+    }
+
+    async function checkStatus() {
+        const data = await fetch('/api/status').then(r => r.json());
+        if (!data.running) {
+            clearInterval(polling); polling = null;
+            document.getElementById('runBtn').disabled = false;
+            const r = data.last_result;
+            if (r?.success) {
+                const n = r.new_invoices;
+                document.getElementById('statusText').innerHTML =
+                    `<span class="badge badge-ok"><span class="dot dot-green"></span>${n} new invoice${n!==1?'s':''}</span>`+
+                    `<span style="font-size:12px;color:var(--light);margin-left:10px">${data.last_run}</span>`;
+            } else {
+                document.getElementById('statusText').innerHTML =
+                    `<span class="badge badge-err"><span class="dot dot-red"></span>Error</span>`+
+                    `<span style="font-size:12px;color:var(--muted);margin-left:10px">${r?.error||'Unknown error'}</span>`;
+            }
+            if (data.last_logs?.length)
+                document.getElementById('logBox').textContent = data.last_logs.join('\n');
+            loadInvoices();
+        }
+    }
+
+    // -- Invoices --
+    function fmtSize(b) {
+        return b >= 1048576 ? (b/1048576).toFixed(1)+' MB' : Math.round(b/1024)+' KB';
+    }
+
+    async function loadInvoices() {
+        const invoices = await fetch('/api/invoices').then(r => r.json());
+        const container = document.getElementById('invoiceList');
+        const countEl   = document.getElementById('invoiceCount');
+
+        if (!invoices.length) {
+            container.innerHTML = `<div class="empty-state">
+                <div class="empty-icon">&#x1F4C4;</div>
+                <div class="empty-text">No invoices downloaded yet.<br>Run the fetcher to get started.</div>
+            </div>`;
+            countEl.style.display = 'none';
+            return;
+        }
+
+        countEl.textContent = invoices.length + ' total';
+        countEl.style.display = '';
+
+        const groups = {};
+        for (const inv of invoices) (groups[inv.category] ??= []).push(inv);
+
+        const labels = { supercharger: 'Supercharger', premium_connectivity: 'Premium Connectivity' };
+
+        const pdfSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="inv-icon"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>`;
+        const dlSvg  = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 12-4-4m4 4 4-4"/><path d="M2 17l.621 2.485A2 2 0 004.561 21h14.878a2 2 0 001.94-1.515L22 17"/></svg>`;
+
+        let html = '<div class="inv-body">';
+        for (const [cat, items] of Object.entries(groups)) {
+            const lbl = labels[cat] || cat.replace(/_/g,' ');
+            html += `<div>
+                <div class="inv-group-hd">
+                    <span class="inv-group-lbl">${lbl}</span>
+                    <span class="inv-group-cnt">${items.length} invoice${items.length!==1?'s':''}</span>
+                </div>
+                <div class="inv-list">`;
+            for (const inv of items) {
+                const stem = inv.name.replace(/\.pdf$/i, '');
+                html += `<div class="inv-row">
+                    ${pdfSvg}
+                    <div class="inv-main">
+                        <a class="inv-name" href="/invoices/${inv.path}" target="_blank" title="${inv.name}">${stem}</a>
+                        <div class="inv-meta">${inv.modified} &middot; ${fmtSize(inv.size)}</div>
+                    </div>
+                    <a class="btn-dl" href="/invoices/${inv.path}" download>
+                        ${dlSvg}&nbsp;Download PDF
+                    </a>
+                </div>`;
+            }
+            html += `</div></div>`;
+        }
+        container.innerHTML = html + '</div>';
+    }
+
+    // -- Auth status --
+    async function loadAuthStatus() {
+        // Proactively try to refresh any expired tokens before checking status
+        await fetch('/api/auth/refresh', { method: 'POST' }).catch(() => {});
+
+        const auth = await fetch('/api/auth').then(r => r.json());
+
+        function statusHtml(valid, hasData, expires) {
+            if (valid)   return `<span class="dot dot-green"></span>Authorized${expires?`<span class="auth-expiry">expires ${expires}</span>`:''}`;
+            if (hasData) return `<span class="dot dot-yellow"></span>Token expired -- re-authorization needed`;
+            return             `<span class="dot dot-red"></span>No token`;
+        }
+
+        const needsFleet = !auth.fleet.valid;
+        const needsOwnership = auth.ownership.configured && !auth.ownership.valid;
+        const needsBoth = needsFleet && needsOwnership;
+
+        let html = '';
+
+        // "Authorize Both" when both APIs need auth
+        if (needsBoth) {
+            html += `<div class="auth-both">
+                <button class="btn btn-primary" onclick="startBothAuth()" style="padding:12px 28px;font-size:14px">
+                    Authorize Both APIs
+                </button>
+                <div class="auth-both-sub">Authorizes Fleet API first, then Ownership API</div>
+            </div>`;
+        }
+
+        html += `
+            <div class="auth-row">
+                <span class="auth-label">Fleet API</span>
+                <span class="auth-status">${statusHtml(auth.fleet.valid, auth.fleet.has_token, auth.fleet.expires)}</span>
+                <button class="btn btn-outline" onclick="startFleetAuth()">Re-authorize</button>
+            </div>
+            <div class="auth-row">
+                <span class="auth-label">Ownership API</span>
+                <span class="auth-status">${
+                    auth.ownership.configured
+                        ? statusHtml(auth.ownership.valid, auth.ownership.has_cache, null)
+                        : `<span class="dot dot-gray"></span><span style="color:var(--light);margin-left:6px">Not configured -- set TESLA_EMAIL in .env</span>`
+                }</span>
+                ${auth.ownership.configured ? `<button class="btn btn-outline" onclick="startOwnershipAuth()">Re-authorize</button>` : ''}
+            </div>`;
+
+        document.getElementById('authRows').innerHTML = html;
+
+        // Store auth state for post-redirect logic
+        window._authState = auth;
+    }
+
+    // -- Fleet API auth --
+    async function startFleetAuth() {
+        const r = await fetch('/auth/fleet/start', {method:'POST'}).then(r=>r.json());
+        if (r.error) { alert('Fleet auth error: ' + r.error); return; }
+
+        if (r.auto_redirect) {
+            // Redirect URI points to this app -- navigate directly, auto-redirects back
+            window.location.href = r.auth_url;
+        } else {
+            // Redirect URI points elsewhere -- show manual paste flow
+            document.getElementById('fleetFlow').style.display = '';
+            document.getElementById('fleetFlowContent').innerHTML = authFlowHtml(
+                'fleetCallbackInput', 'submitFleetCallback', 'cancelFleetAuth', r.auth_url,
+                'http://localhost:8080/callback?code=...',
+                `After logging in, your browser is redirected to your registered redirect URI.
+                 The page may show a connection error -- that's fine.
+                 Copy the <strong>full URL</strong> from the address bar and paste it below.`
+            );
+        }
+    }
+
+    async function submitFleetCallback() {
+        const url = document.getElementById('fleetCallbackInput').value.trim();
+        if (!url) return;
+        document.getElementById('fleetFlowContent').innerHTML = '<span class="badge badge-run"><span class="dot dot-yellow dot-blink"></span>Exchanging tokens...</span>';
+        const r = await fetch('/auth/fleet/submit', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({callback_url:url}),
+        }).then(r=>r.json());
+        document.getElementById('fleetFlowContent').innerHTML = authResult(r.error, r.status==='success', 'startFleetAuth');
+        if (r.status==='success') {
+            loadAuthStatus();
+            setTimeout(()=>{ document.getElementById('fleetFlow').style.display='none'; }, 2000);
+            // If "both" flow, auto-start ownership
+            if (sessionStorage.getItem('pending_ownership_auth') === '1') {
+                sessionStorage.removeItem('pending_ownership_auth');
+                setTimeout(() => autoStartOwnershipIfNeeded(), 2500);
+            }
+        }
+    }
+
+    function cancelFleetAuth() { document.getElementById('fleetFlow').style.display = 'none'; }
+
+    // -- "Authorize Both" flow --
+    function startBothAuth() {
+        sessionStorage.setItem('pending_ownership_auth', '1');
+        startFleetAuth();
+    }
+
+    // -- Ownership API auth (always paste flow -- Tesla redirects to void/callback) --
+    function authFlowHtml(inputId, submitFn, cancelFn, authUrl, placeholder, hint) {
+        return `
+            <div class="step">
+                <div class="step-n">1</div>
+                <div>Open this link in your browser and log in to your Tesla account:</div>
+            </div>
+            <div class="url-box"><a href="${authUrl}" target="_blank">${authUrl}</a></div>
+            <div class="step" style="margin-top:10px">
+                <div class="step-n">2</div>
+                <div>${hint}</div>
+            </div>
+            <div class="paste-row">
+                <input id="${inputId}" type="text" placeholder="${placeholder}" autocomplete="off" />
+                <button class="btn btn-primary" style="padding:9px 16px;font-size:12px" onclick="${submitFn}()">Submit</button>
+            </div>
+            <span class="flow-cancel" onclick="${cancelFn}()">Cancel</span>`;
+    }
+
+    function authResult(content, ok, retryFn) {
+        if (ok) return `<span class="badge badge-ok"><span class="dot dot-green"></span>Authorization successful!</span>`;
+        return `<span class="badge badge-err"><span class="dot dot-red"></span>Failed</span>
+                <span style="font-size:12px;color:var(--muted);margin-left:8px">${content}</span>
+                <br><span class="flow-cancel" style="margin-top:8px;display:inline-block" onclick="${retryFn}()">Try again</span>`;
+    }
+
+    async function startOwnershipAuth() {
+        document.getElementById('ownershipFlow').style.display = '';
+        document.getElementById('ownershipFlowContent').innerHTML = '<span style="font-size:13px;color:var(--muted)">Generating authorization URL...</span>';
+        const r = await fetch('/auth/ownership/start', {method:'POST'}).then(r=>r.json());
+        if (r.error) { document.getElementById('ownershipFlowContent').innerHTML = authResult(r.error, false, 'startOwnershipAuth'); return; }
+        document.getElementById('ownershipFlowContent').innerHTML = authFlowHtml(
+            'ownershipCallbackInput', 'submitOwnershipCallback', 'cancelOwnershipAuth', r.auth_url,
+            'https://auth.tesla.com/void/callback?code=...',
+            `After logging in, Tesla redirects you to a blank page at <code>auth.tesla.com/void/callback</code>.
+             Copy the <strong>full URL</strong> from the address bar and paste it below.`
+        );
+    }
+
+    async function submitOwnershipCallback() {
+        const url = document.getElementById('ownershipCallbackInput').value.trim();
+        if (!url) return;
+        document.getElementById('ownershipFlowContent').innerHTML = '<span class="badge badge-run"><span class="dot dot-yellow dot-blink"></span>Exchanging tokens...</span>';
+        const r = await fetch('/auth/ownership/submit', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({callback_url:url}),
+        }).then(r=>r.json());
+        document.getElementById('ownershipFlowContent').innerHTML = authResult(r.error, r.status==='success', 'startOwnershipAuth');
+        if (r.status==='success') {
+            loadAuthStatus();
+            setTimeout(()=>{ document.getElementById('ownershipFlow').style.display='none'; }, 2000);
+        }
+    }
+
+    function cancelOwnershipAuth() { document.getElementById('ownershipFlow').style.display = 'none'; }
+
+    // -- Auto-start ownership auth if needed (used by "Authorize Both" flow) --
+    async function autoStartOwnershipIfNeeded() {
+        const auth = await fetch('/api/auth').then(r => r.json());
+        if (auth.ownership.configured && !auth.ownership.valid) {
+            startOwnershipAuth();
+        }
+    }
+
+    // -- Init --
+    loadAuthStatus();
+    loadInvoices();
+    fetch('/api/status').then(r=>r.json()).then(data => {
+        if (data.last_run)
+            document.getElementById('statusText').innerHTML =
+                `<span style="font-size:12px;color:var(--light)">Last run: ${data.last_run}</span>`;
+        if (data.last_logs?.length) {
+            document.getElementById('logBox').textContent = data.last_logs.join('\n');
+            toggleLog(true);
+        }
+    });
+
+    // Handle post-auth redirect (Fleet API auto-callback)
+    const authParam = new URLSearchParams(location.search).get('auth');
+    if (authParam === 'fleet_ok') {
+        history.replaceState({}, '', '/');
+        document.getElementById('authBanner').innerHTML =
+            '<div class="banner banner-ok"><span class="dot dot-green"></span>Fleet API authorized successfully!</div>';
+        setTimeout(() => { document.getElementById('authBanner').innerHTML = ''; }, 5000);
+
+        // If "Authorize Both" flow is active, auto-start Ownership auth
+        if (sessionStorage.getItem('pending_ownership_auth') === '1') {
+            sessionStorage.removeItem('pending_ownership_auth');
+            setTimeout(() => autoStartOwnershipIfNeeded(), 1500);
+        }
+    }
+</script>
+</body>
+</html>

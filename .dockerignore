@@ -1,0 +1,30 @@
+# Secrets and runtime state — never bake into the image
+.env
+tokens.json
+cache.json
+
+# Runtime directories (provided via volumes at runtime)
+auth/
+invoices/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.egg-info/
+
+# Git & CI
+.git/
+.github/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Dev artifacts
+*.bat
+*.log
+logs/

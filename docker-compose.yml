@@ -1,0 +1,33 @@
+# Example docker-compose.yml for Tesla Invoice Fetcher.
+#
+# Option A: Pull pre-built image from GHCR (recommended)
+# Option B: Build from source (uncomment the `build:` block, remove `image:`)
+#
+# Place your .env file inside the config volume directory on the host, e.g.:
+#   /your/path/tesla-config/.env
+#
+# Tesla only accepts localhost (not private IPs) as OAuth redirect URIs.
+# Set TESLA_REDIRECT_URI in .env to your registered localhost URI, e.g.:
+#   TESLA_REDIRECT_URI=http://localhost:8080/callback
+#
+# When accessing the dashboard from another machine (e.g. 192.168.x.x),
+# Fleet API auth uses the paste flow since the localhost redirect can't
+# reach the Flask app from the remote browser.
+
+services:
+  tesla-invoice-fetcher:
+    image: ghcr.io/kevinengelen1/tesla-invoice-fetcher:latest
+    # build:
+    #   context: .
+    container_name: tesla-invoice-fetcher
+    ports:
+      - "5000:5000"
+    volumes:
+      # Config + auth tokens (.env, tokens.json)
+      - /your/path/tesla-config:/app/config
+      # Invoice PDFs — point this at your NAS share or preferred storage location
+      - /your/path/tesla-invoices:/app/invoices
+    environment:
+      AUTH_DIR: /app/config
+      INVOICE_OUTPUT_DIR: /app/invoices
+    restart: unless-stopped
