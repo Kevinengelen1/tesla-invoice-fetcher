@@ -1,7 +1,6 @@
 # Example docker-compose.yml for Tesla Invoice Fetcher.
 #
-# Option A: Pull pre-built image from GHCR (recommended)
-# Option B: Build from source (uncomment the `build:` block, remove `image:`)
+# Pull pre-built image from GHCR (recommended)
 #
 # Place your .env file inside the config volume directory on the host, e.g.:
 #   /your/path/tesla-config/.env
@@ -17,17 +16,16 @@
 services:
   tesla-invoice-fetcher:
     image: ghcr.io/kevinengelen1/tesla-invoice-fetcher:latest
-    # build:
-    #   context: .
     container_name: tesla-invoice-fetcher
     ports:
       - "5000:5000"
     volumes:
       # Config + auth tokens (.env, tokens.json)
       - /your/path/tesla-config:/app/config
-      # Invoice PDFs — point this at your NAS share or preferred storage location
+      # Invoice PDFs — point this at your preferred storage location
       - /your/path/tesla-invoices:/app/invoices
     environment:
       AUTH_DIR: /app/config
       INVOICE_OUTPUT_DIR: /app/invoices
+      INVOICE_NAME_PATTERN: "{date} - Tesla - {label} {name}"
     restart: unless-stopped
