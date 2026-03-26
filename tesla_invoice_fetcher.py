@@ -41,7 +41,7 @@ OUTPUT_DIR = Path(os.getenv("INVOICE_OUTPUT_DIR", "./invoices"))
 TRACKING_FILE = OUTPUT_DIR / ".downloaded_invoices.json"
 INVOICE_NAME_PATTERN = os.getenv(
     "INVOICE_NAME_PATTERN",
-    "{date} - Tesla - {label} {name} - IT Precision Analytics",
+    "{date} - Tesla - {label} {name}",
 )
 AUTH_DIR = Path(os.getenv("AUTH_DIR", "."))
 TOKEN_FILE = AUTH_DIR / "tokens.json"
@@ -262,6 +262,7 @@ def load_tracking() -> set:
 
 
 def save_tracking(ids: set) -> None:
+    TRACKING_FILE.parent.mkdir(parents=True, exist_ok=True)
     TRACKING_FILE.write_text(json.dumps(sorted(ids), indent=2))
 
 

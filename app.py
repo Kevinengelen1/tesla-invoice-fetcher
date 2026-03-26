@@ -29,6 +29,7 @@ from tesla_invoice_fetcher import (
 )
 
 app = Flask(__name__)
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # Auth configuration (used by the in-app OAuth flows)
 _CLIENT_ID = os.getenv("TESLA_CLIENT_ID", "")
