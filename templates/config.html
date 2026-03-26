@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings — Tesla Invoice Fetcher</title>
+    <style>
+        :root {
+            --red:    #e82127;
+            --red-dk: #c01b21;
+            --bg:     #f0f0f2;
+            --card:   #ffffff;
+            --border: #e5e7eb;
+            --text:   #111827;
+            --muted:  #6b7280;
+            --light:  #9ca3af;
+            --radius: 14px;
+            --shadow: 0 1px 3px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.04);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+               background: var(--bg); color: var(--text); min-height: 100vh; }
+
+        /* Header */
+        .topbar { background: #111; color: #fff; height: 54px; padding: 0 24px;
+                  display: flex; align-items: center; gap: 14px;
+                  position: sticky; top: 0; z-index: 20;
+                  border-bottom: 1px solid rgba(255,255,255,.05); }
+        .topbar-logo { width: 30px; height: 30px; background: var(--red); border-radius: 7px;
+                       display: flex; align-items: center; justify-content: center;
+                       font-size: 16px; font-weight: 900; color: #fff; flex-shrink: 0; text-decoration: none; }
+        .topbar-title { font-size: 15px; font-weight: 600; letter-spacing: -.2px; white-space: nowrap; }
+        .topbar-div   { width: 1px; height: 16px; background: #2f2f2f; flex-shrink: 0; }
+        .topbar-nav   { display: flex; align-items: center; gap: 4px; }
+        .nav-link     { font-size: 13px; font-weight: 500; color: #9ca3af; text-decoration: none;
+                        padding: 6px 12px; border-radius: 7px; transition: all .15s; }
+        .nav-link:hover   { color: #fff; background: rgba(255,255,255,.06); }
+        .nav-link.active  { color: #fff; background: rgba(255,255,255,.1); }
+        .topbar-spacer { flex: 1; }
+        .version-badge { font-size: 11px; font-weight: 600; color: #4b5563;
+                         background: #1f2937; padding: 3px 9px; border-radius: 20px;
+                         letter-spacing: .3px; white-space: nowrap; }
+
+        /* Layout */
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px 20px 64px;
+                     display: flex; flex-direction: column; gap: 14px; }
+
+        /* Cards */
+        .card { background: var(--card); border-radius: var(--radius);
+                box-shadow: var(--shadow); border: 1px solid var(--border); }
+        .card-hd { display: flex; align-items: center; gap: 10px;
+                   padding: 14px 20px; border-bottom: 1px solid var(--border); }
+        .card-title { font-size: 11px; font-weight: 700; color: var(--light);
+                      text-transform: uppercase; letter-spacing: .9px; }
+        .card-icon { width: 28px; height: 28px; border-radius: 7px; display: flex;
+                     align-items: center; justify-content: center; flex-shrink: 0; }
+        .icon-blue   { background: #eff6ff; color: #2563eb; }
+        .icon-green  { background: #f0fdf4; color: #16a34a; }
+        .icon-orange { background: #fff7ed; color: #ea580c; }
+        .icon-purple { background: #faf5ff; color: #7c3aed; }
+        .icon-gray   { background: #f9fafb; color: #6b7280; }
+
+        /* Config rows */
+        .cfg-row { display: flex; align-items: center; gap: 12px; padding: 11px 20px;
+                   border-bottom: 1px solid #f9fafb; min-height: 48px; }
+        .cfg-row:last-child { border-bottom: none; }
+        .cfg-label { font-size: 12px; font-weight: 600; color: var(--muted);
+                     min-width: 210px; flex-shrink: 0; }
+        .cfg-value-wrap { flex: 1; min-width: 0; }
+        .cfg-display { font-size: 13px; color: var(--text);
+                       font-family: ui-monospace, monospace; word-break: break-all; }
+        .cfg-display.normal { font-family: inherit; }
+        .cfg-note  { font-size: 11px; color: var(--light); margin-top: 3px; display: block; }
+
+        /* Edit form */
+        .cfg-edit-form { display: none; align-items: flex-start; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+        .cfg-edit-form.active { display: flex; }
+        .cfg-input-wrap { flex: 1; min-width: 180px; }
+        .cfg-input { width: 100%; padding: 7px 11px; border: 1.5px solid #d1d5db;
+                     border-radius: 7px; font-size: 13px; font-family: ui-monospace, monospace;
+                     background: #fff; transition: border-color .15s; outline: none; color: var(--text); }
+        .cfg-input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.1); }
+        .cfg-input.normal { font-family: inherit; }
+        select.cfg-input { cursor: pointer; }
+        .cfg-edit-actions { display: flex; gap: 6px; align-items: center; padding-top: 1px; }
+
+        /* Edit icon button */
+        .edit-btn { flex-shrink: 0; width: 28px; height: 28px; border: 1px solid var(--border);
+                    border-radius: 7px; background: transparent; cursor: pointer; color: var(--light);
+                    display: flex; align-items: center; justify-content: center;
+                    transition: all .15s; opacity: 0; }
+        .cfg-row:hover .edit-btn,
+        .edit-btn.active { opacity: 1; }
+        .edit-btn:hover { background: #f3f4f6; color: var(--muted); border-color: #d1d5db; }
+        .edit-btn.active { color: #6366f1; border-color: #a5b4fc; background: #eef2ff; }
+        .edit-btn-placeholder { width: 28px; flex-shrink: 0; }
+
+        /* Buttons */
+        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px;
+               border: none; border-radius: 7px; font-size: 12px; font-weight: 600;
+               cursor: pointer; transition: all .15s; white-space: nowrap; line-height: 1; }
+        .btn-primary { background: var(--red); color: #fff; padding: 9px 18px; font-size: 13px; }
+        .btn-primary:hover { background: var(--red-dk); }
+        .btn-save   { background: #111; color: #fff; }
+        .btn-save:hover { background: #1f2937; }
+        .btn-cancel { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+        .btn-cancel:hover { background: #f9fafb; color: var(--text); }
+        .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+        /* Pills */
+        .pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px;
+                border-radius: 20px; font-size: 11px; font-weight: 600; }
+        .pill-ok      { background: #ecfdf5; color: #065f46; }
+        .pill-err     { background: #fef2f2; color: #991b1b; }
+        .pill-neutral { background: #f3f4f6; color: #374151; }
+        .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; }
+        .dot-ok   { background: #10b981; }
+        .dot-err  { background: #ef4444; }
+        .dot-gray { background: #d1d5db; }
+
+        /* VIN chips */
+        .vin-list { display: flex; flex-wrap: wrap; gap: 6px; }
+        .vin-chip { background: #f3f4f6; border: 1px solid var(--border); border-radius: 6px;
+                    padding: 3px 10px; font-size: 12px; font-family: ui-monospace, monospace; }
+
+        /* Info box */
+        .info-box { margin: 0 20px 16px; background: #f0f4ff; border: 1px solid #c7d5f8;
+                    border-radius: 10px; padding: 14px 18px; }
+        .info-box.info-green  { background: #f0fdf4; border-color: #bbf7d0; }
+        .info-title { font-size: 12px; font-weight: 700; color: #1e3a8a; margin-bottom: 6px; }
+        .info-box.info-green .info-title { color: #166534; }
+        .info-body { font-size: 12px; color: #374151; line-height: 1.7; }
+        .info-body code { background: rgba(0,0,0,.06); padding: 1px 5px; border-radius: 3px;
+                          font-size: 11px; font-family: ui-monospace, monospace; }
+        .info-body a { color: #1e3a8a; }
+
+        /* Save notice */
+        .save-notice { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px;
+                       padding: 10px 16px; font-size: 12px; color: #166534;
+                       display: flex; align-items: center; gap: 8px; }
+        .save-notice code { background: rgba(0,0,0,.07); padding: 1px 5px; border-radius: 3px;
+                             font-family: ui-monospace, monospace; font-size: 11px; color: inherit; }
+
+        /* Toast */
+        .toast { position: fixed; bottom: 24px; left: 50%;
+                 transform: translateX(-50%) translateY(80px);
+                 background: #111; color: #fff; padding: 10px 22px; border-radius: 10px;
+                 font-size: 13px; font-weight: 500; z-index: 200; pointer-events: none;
+                 transition: transform .3s cubic-bezier(.175,.885,.32,1.275); white-space: nowrap; }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast.error { background: #dc2626; }
+
+        /* Modal */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45);
+                         display: flex; align-items: center; justify-content: center;
+                         z-index: 100; padding: 20px; }
+        .modal { background: #fff; border-radius: 16px; width: 100%; max-width: 640px;
+                 box-shadow: 0 20px 60px rgba(0,0,0,.2); display: flex; flex-direction: column;
+                 max-height: 85vh; }
+        .modal-hd { display: flex; align-items: center; justify-content: space-between;
+                    padding: 18px 20px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .modal-hd h3 { font-size: 15px; font-weight: 700; }
+        .modal-close { width: 28px; height: 28px; border: none; background: #f3f4f6;
+                       border-radius: 7px; cursor: pointer; font-size: 16px; color: var(--muted);
+                       display: flex; align-items: center; justify-content: center; }
+        .modal-close:hover { background: #e5e7eb; }
+        .modal-body { padding: 16px 20px; overflow-y: auto; flex: 1; }
+        .modal-footer { padding: 14px 20px; border-top: 1px solid var(--border);
+                        display: flex; gap: 8px; justify-content: flex-end; flex-shrink: 0; }
+        .modal-summary { font-size: 13px; color: var(--muted); margin-bottom: 14px; line-height: 1.5; }
+        .modal-summary strong { color: var(--text); }
+        .rename-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .rename-table th { text-align: left; padding: 6px 8px; border-bottom: 2px solid var(--border);
+                           font-size: 11px; font-weight: 700; color: var(--light);
+                           text-transform: uppercase; letter-spacing: .7px; }
+        .rename-table td { padding: 6px 8px; border-bottom: 1px solid #f9fafb;
+                           font-family: ui-monospace, monospace; word-break: break-all; }
+        .rename-table tr:last-child td { border-bottom: none; }
+        .rename-arrow { color: var(--light); padding: 0 4px; font-family: inherit; }
+        .rename-new { color: #2563eb; }
+        .rename-skip { color: var(--light); font-style: italic; }
+        .rename-err-box { margin-top: 12px; background: #fef2f2; border: 1px solid #fecaca;
+                          border-radius: 8px; padding: 10px 12px; }
+        .rename-err-title { font-size: 11px; font-weight: 700; color: #991b1b; margin-bottom: 6px; }
+        .rename-err-item { font-size: 11px; color: #b91c1c; font-family: ui-monospace, monospace; }
+        .modal-more { font-size: 12px; color: var(--light); padding: 6px 8px; font-style: italic; }
+
+        /* Loading */
+        .loading { padding: 32px 20px; text-align: center; color: var(--light); font-size: 13px; }
+
+        /* Footer */
+        .footer { text-align: center; padding: 24px; font-size: 12px; color: var(--light); }
+        .footer a { color: var(--light); text-decoration: none; }
+        .footer a:hover { color: var(--muted); }
+
+        /* Topbar extras */
+        .theme-toggle { background: none; border: 1px solid #2f2f2f; border-radius: 7px;
+                        width: 30px; height: 30px; cursor: pointer; color: #9ca3af;
+                        display: flex; align-items: center; justify-content: center;
+                        transition: all .15s; flex-shrink: 0; padding: 0; }
+        .theme-toggle:hover { color: #fff; border-color: #4b5563; background: rgba(255,255,255,.06); }
+        .topbar-user-name { font-size: 12px; font-weight: 500; color: #e5e7eb;
+                            white-space: nowrap; max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
+        .btn-logout { font-size: 12px; font-weight: 500; color: #9ca3af; background: none;
+                      border: 1px solid #2f2f2f; border-radius: 7px; padding: 5px 10px;
+                      cursor: pointer; transition: all .15s; white-space: nowrap; }
+        .btn-logout:hover { color: #fff; border-color: #4b5563; background: rgba(255,255,255,.06); }
+
+        /* Dark mode */
+        [data-theme="dark"] {
+            --bg:     #0d1117;
+            --card:   #161b22;
+            --border: #30363d;
+            --text:   #e6edf3;
+            --muted:  #8b949e;
+            --light:  #6e7681;
+            --shadow: 0 1px 3px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.3);
+        }
+        [data-theme="dark"] .topbar { background: #010409; border-bottom-color: rgba(255,255,255,.08); }
+        [data-theme="dark"] .topbar-div { background: #21262d; }
+        [data-theme="dark"] .version-badge { color: #6e7681; background: #21262d; }
+        [data-theme="dark"] .cfg-input { background: #0d1117; border-color: #30363d; color: var(--text); }
+        [data-theme="dark"] .cfg-input:focus { border-color: #6366f1; }
+        [data-theme="dark"] select.cfg-input { background: #0d1117; }
+        [data-theme="dark"] .edit-btn:hover { background: #21262d; color: var(--muted); border-color: #484f58; }
+        [data-theme="dark"] .edit-btn.active { background: #1e2038; border-color: #6366f1; }
+        [data-theme="dark"] .pill-ok      { background: #0d2c1e; color: #3fb950; }
+        [data-theme="dark"] .pill-err     { background: #2d0e0e; color: #f85149; }
+        [data-theme="dark"] .pill-neutral { background: #21262d; color: #c9d1d9; }
+        [data-theme="dark"] .vin-chip { background: #21262d; border-color: #30363d; }
+        [data-theme="dark"] .info-box { background: #161f2e; border-color: #264366; }
+        [data-theme="dark"] .info-box.info-green { background: #0d2c1e; border-color: #1a4731; }
+        [data-theme="dark"] .info-title { color: #79c0ff; }
+        [data-theme="dark"] .info-box.info-green .info-title { color: #3fb950; }
+        [data-theme="dark"] .info-body { color: #8b949e; }
+        [data-theme="dark"] .info-body a { color: #79c0ff; }
+        [data-theme="dark"] .save-notice { background: #0d2c1e; border-color: #1a4731; color: #3fb950; }
+        [data-theme="dark"] .modal { background: #161b22; }
+        [data-theme="dark"] .modal-hd { border-color: #30363d; }
+        [data-theme="dark"] .modal-footer { border-color: #30363d; }
+        [data-theme="dark"] .rename-table th { border-color: #30363d; }
+        [data-theme="dark"] .rename-table td { border-bottom-color: #21262d; }
+        [data-theme="dark"] .rename-err-box { background: #2d0e0e; border-color: #5d1a1a; }
+        [data-theme="dark"] .rename-err-title { color: #f85149; }
+        [data-theme="dark"] .rename-err-item { color: #fca5a5; }
+        [data-theme="dark"] .btn-cancel { border-color: #30363d; color: var(--muted); }
+        [data-theme="dark"] .btn-cancel:hover { background: #21262d; color: var(--text); }
+        [data-theme="dark"] .cfg-row:hover { background: #1c2128; }
+
+        /* Mobile */
+        @media (max-width: 640px) {
+            .cfg-row { flex-wrap: wrap; }
+            .cfg-label { min-width: 100%; }
+            .edit-btn { opacity: 1; }
+            .topbar-title { display: none; }
+        }
+    </style>
+    <script>(function(){const t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t);})()</script>
+</head>
+<body>
+
+<header class="topbar">
+    <a class="topbar-logo" href="/">T</a>
+    <span class="topbar-title">Invoice Fetcher</span>
+    <div class="topbar-div"></div>
+    <nav class="topbar-nav">
+        <a class="nav-link" href="/">Dashboard</a>
+        <a class="nav-link active" href="/config">Settings</a>
+    </nav>
+    <div class="topbar-spacer"></div>
+    <span class="version-badge">v{{ version }}</span>
+    <span id="topbarUser" style="display:none;align-items:center;gap:8px">
+        <div class="topbar-div"></div>
+        <span class="topbar-user-name" id="topbarUserName"></span>
+        <button class="btn-logout" onclick="fetch('/logout',{method:'POST'}).then(()=>location.href='/')">Sign out</button>
+    </span>
+    <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle dark mode">
+        <svg id="themeIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+    </button>
+</header>
+
+<div id="toast" class="toast"></div>
+
+<!-- Rename modal -->
+<div id="rename-modal" class="modal-overlay" style="display:none" onclick="handleOverlayClick(event)">
+    <div class="modal">
+        <div class="modal-hd">
+            <h3>Rename existing invoices?</h3>
+            <button class="modal-close" onclick="closeRenameModal()">✕</button>
+        </div>
+        <div class="modal-body" id="rename-modal-body">
+            <div class="loading">Analysing files…</div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-cancel" onclick="closeRenameModal()">Skip</button>
+            <button class="btn btn-primary" id="rename-confirm-btn" onclick="confirmRename()" disabled>
+                Loading…
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="container" id="main">
+    <div class="loading">Loading configuration…</div>
+</div>
+
+<footer class="footer">
+    Tesla Invoice Fetcher v{{ version }} &nbsp;&middot;&nbsp;
+    <a href="https://github.com/Kevinengelen1/tesla-invoice-fetcher" target="_blank">GitHub</a>
+</footer>
+
+<script>
+let cfg = {};
+let editingKey = null;
+let _renameOldPattern = '';
+let _renameNewPattern = '';
+
+/* ---- Dark mode ---- */
+const sunSvg  = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
+const moonSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>`;
+
+function updateThemeIcon(theme) {
+    document.getElementById('themeIcon').outerHTML =
+        (theme === 'dark' ? sunSvg : moonSvg).replace('<svg ', '<svg id="themeIcon" ');
+}
+function toggleTheme() {
+    const cur = document.documentElement.getAttribute('data-theme') || 'light';
+    const next = cur === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+    updateThemeIcon(next);
+}
+updateThemeIcon(document.documentElement.getAttribute('data-theme') || 'light');
+
+/* ---- User info ---- */
+async function loadUser() {
+    try {
+        const me = await fetch('/api/me').then(r => r.json());
+        if (me.oidc_enabled && me.user) {
+            const el = document.getElementById('topbarUser');
+            document.getElementById('topbarUserName').textContent = me.user.name || me.user.email || 'User';
+            el.style.display = 'flex';
+        }
+    } catch(_) {}
+}
+loadUser();
+
+/* ---- Helpers ---- */
+function esc(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function pill(ok, okLabel, failLabel) {
+    if (ok) return `<span class="pill pill-ok"><span class="dot dot-ok"></span>${okLabel}</span>`;
+    return `<span class="pill pill-err"><span class="dot dot-err"></span>${failLabel}</span>`;
+}
+function pillN(label) { return `<span class="pill pill-neutral">${esc(label)}</span>`; }
+function muted(text) { return `<span style="color:var(--light)">${esc(text)}</span>`; }
+function editIconSvg() {
+    return `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+}
+
+/* ---- Row builder ---- */
+function row(key, label, displayHtml, editWidgetHtml, editable = true) {
+    const btn = editable
+        ? `<button class="edit-btn" id="editbtn-${key}" onclick="startEdit('${key}')" title="Edit">${editIconSvg()}</button>`
+        : `<div class="edit-btn-placeholder"></div>`;
+    const form = editable ? `
+        <div class="cfg-edit-form" id="form-${key}">
+            ${editWidgetHtml}
+            <div class="cfg-edit-actions">
+                <button class="btn btn-save" onclick="saveField('${key}')">Save</button>
+                <button class="btn btn-cancel" onclick="cancelEdit('${key}')">Cancel</button>
+            </div>
+        </div>` : '';
+    return `
+    <div class="cfg-row" id="row-${key}">
+        <span class="cfg-label">${label}</span>
+        <div class="cfg-value-wrap">
+            <div class="cfg-display" id="disp-${key}">${displayHtml}</div>
+            ${form}
+        </div>
+        ${btn}
+    </div>`;
+}
+
+function inputWrap(key, type, value, placeholder, cls = '', hint = '') {
+    const hintHtml = hint ? `<span class="cfg-note">${esc(hint)}</span>` : '';
+    return `<div class="cfg-input-wrap">
+        <input type="${type}" id="input-${key}" class="cfg-input ${cls}" value="${esc(value)}" placeholder="${esc(placeholder)}">
+        ${hintHtml}
+    </div>`;
+}
+function selectWrap(key, value, options) {
+    const opts = Object.entries(options).map(([v,l]) =>
+        `<option value="${esc(v)}"${v===value?' selected':''}>${esc(l)}</option>`
+    ).join('');
+    return `<div class="cfg-input-wrap"><select id="input-${key}" class="cfg-input normal">${opts}</select></div>`;
+}
+
+/* ---- Edit lifecycle ---- */
+function startEdit(key) {
+    if (editingKey && editingKey !== key) cancelEdit(editingKey);
+    editingKey = key;
+    document.getElementById('disp-' + key).style.display = 'none';
+    const form = document.getElementById('form-' + key);
+    if (form) form.classList.add('active');
+    const btn = document.getElementById('editbtn-' + key);
+    if (btn) btn.classList.add('active');
+    const input = document.getElementById('input-' + key);
+    if (input) { input.focus(); if (input.select) input.select(); }
+}
+
+function cancelEdit(key) {
+    editingKey = null;
+    document.getElementById('disp-' + key).style.display = '';
+    const form = document.getElementById('form-' + key);
+    if (form) form.classList.remove('active');
+    const btn = document.getElementById('editbtn-' + key);
+    if (btn) btn.classList.remove('active');
+}
+
+async function saveField(key) {
+    const input = document.getElementById('input-' + key);
+    if (!input) return;
+    const newValue = input.value;
+
+    // Capture old pattern before saving so we can offer rename
+    const oldPattern = key === 'INVOICE_NAME_PATTERN'
+        ? (cfg.edit_values?.INVOICE_NAME_PATTERN || '')
+        : null;
+
+    try {
+        const resp = await fetch('/api/config', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({[key]: newValue}),
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Save failed');
+
+        showToast('Saved');
+        cancelEdit(key);
+        cfg = await fetch('/api/config').then(r => r.json());
+        render();
+
+        // Offer to rename existing files if the filename pattern changed
+        if (key === 'INVOICE_NAME_PATTERN' && oldPattern && oldPattern !== newValue) {
+            offerRename(oldPattern, newValue);
+        }
+    } catch(e) {
+        showToast(e.message, 'error');
+    }
+}
+
+/* ---- Toast ---- */
+let toastTimer;
+function showToast(msg, type = '') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast show' + (type === 'error' ? ' error' : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+/* ---- Rename flow ---- */
+async function offerRename(oldPattern, newPattern) {
+    _renameOldPattern = oldPattern;
+    _renameNewPattern = newPattern;
+
+    // Show modal immediately with loading state
+    document.getElementById('rename-modal').style.display = 'flex';
+    document.getElementById('rename-modal-body').innerHTML = '<div class="loading">Analysing files…</div>';
+    document.getElementById('rename-confirm-btn').textContent = 'Loading…';
+    document.getElementById('rename-confirm-btn').disabled = true;
+
+    try {
+        const resp = await fetch('/api/invoices/rename', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({old_pattern: oldPattern, new_pattern: newPattern, dry_run: true}),
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Preview failed');
+
+        if (data.to_rename === 0) {
+            closeRenameModal();
+            showToast('No files need renaming');
+            return;
+        }
+
+        renderRenamePreview(data);
+    } catch(e) {
+        closeRenameModal();
+        showToast('Rename preview failed: ' + e.message, 'error');
+    }
+}
+
+function renderRenamePreview(data) {
+    const changed  = data.results.filter(r => r.changed);
+    const skipped  = data.results.filter(r => !r.changed);
+    const errors   = data.errors || [];
+    const preview  = changed.slice(0, 10);
+    const more     = changed.length - preview.length;
+
+    const rows = preview.map(r => `
+        <tr>
+            <td>${esc(r.old)}</td>
+            <td class="rename-arrow">→</td>
+            <td class="rename-new">${esc(r.new)}</td>
+        </tr>`).join('');
+
+    const moreRow = more > 0
+        ? `<tr><td colspan="3" class="modal-more">…and ${more} more file${more > 1 ? 's' : ''}</td></tr>`
+        : '';
+
+    const errHtml = errors.length ? `
+        <div class="rename-err-box">
+            <div class="rename-err-title">⚠ ${errors.length} file${errors.length > 1 ? 's' : ''} could not be parsed</div>
+            ${errors.slice(0,5).map(e => `<div class="rename-err-item">${esc(e.file)}: ${esc(e.reason)}</div>`).join('')}
+        </div>` : '';
+
+    document.getElementById('rename-modal-body').innerHTML = `
+        <div class="modal-summary">
+            <strong>${changed.length} file${changed.length !== 1 ? 's' : ''}</strong> will be renamed to match the new pattern.
+            ${skipped.length ? `${skipped.length} file${skipped.length !== 1 ? 's' : ''} already match.` : ''}
+        </div>
+        <table class="rename-table">
+            <thead>
+                <tr>
+                    <th>Current name</th>
+                    <th></th>
+                    <th>New name</th>
+                </tr>
+            </thead>
+            <tbody>${rows}${moreRow}</tbody>
+        </table>
+        ${errHtml}
+    `;
+
+    const confirmBtn = document.getElementById('rename-confirm-btn');
+    confirmBtn.textContent = `Rename ${changed.length} file${changed.length !== 1 ? 's' : ''}`;
+    confirmBtn.disabled = false;
+}
+
+async function confirmRename() {
+    const btn = document.getElementById('rename-confirm-btn');
+    btn.disabled = true;
+    btn.textContent = 'Renaming…';
+
+    try {
+        const resp = await fetch('/api/invoices/rename', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                old_pattern: _renameOldPattern,
+                new_pattern: _renameNewPattern,
+                dry_run: false,
+            }),
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.error || 'Rename failed');
+        closeRenameModal();
+        showToast(`Renamed ${data.renamed} file${data.renamed !== 1 ? 's' : ''}`);
+    } catch(e) {
+        closeRenameModal();
+        showToast('Rename failed: ' + e.message, 'error');
+    }
+}
+
+function closeRenameModal() {
+    document.getElementById('rename-modal').style.display = 'none';
+}
+function handleOverlayClick(e) {
+    if (e.target === document.getElementById('rename-modal')) closeRenameModal();
+}
+
+/* ---- Main render ---- */
+async function load() {
+    cfg = await fetch('/api/config').then(r => r.json());
+    render();
+}
+
+function render() {
+    const ev = cfg.edit_values || {};
+    const regionLabels = {eu:'Europe', na:'North America', cn:'China'};
+    const main = document.getElementById('main');
+    main.innerHTML = `
+
+        <div class="save-notice">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            Changes apply immediately to the running app and are saved to <code>.env</code> for persistence across restarts.
+        </div>
+
+        <!-- Tesla API -->
+        <div class="card">
+            <div class="card-hd">
+                <div class="card-icon icon-blue">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>
+                </div>
+                <span class="card-title">Tesla API</span>
+            </div>
+            ${row('TESLA_CLIENT_ID', 'Client ID',
+                pill(cfg.client_id_configured, 'Configured', 'Not set') +
+                (cfg.client_id_configured && ev.TESLA_CLIENT_ID
+                    ? `<span class="cfg-note">${esc(ev.TESLA_CLIENT_ID.slice(0,8))}…</span>` : ''),
+                inputWrap('TESLA_CLIENT_ID', 'text', ev.TESLA_CLIENT_ID||'', 'Your Fleet API client ID')
+            )}
+            ${row('TESLA_CLIENT_SECRET', 'Client Secret',
+                pill(cfg.client_secret_configured, 'Configured (write-only)', 'Not set'),
+                inputWrap('TESLA_CLIENT_SECRET', 'password', '', 'Leave blank to keep current value',
+                    '', 'Leave blank to keep the existing secret')
+            )}
+            ${row('TESLA_REGION', 'Region',
+                `<span class="cfg-display normal">${pillN((regionLabels[cfg.tesla_region]||cfg.tesla_region)+' ('+cfg.tesla_region+')')}</span>`,
+                selectWrap('TESLA_REGION', ev.TESLA_REGION||'eu', regionLabels)
+            )}
+            ${row('TESLA_REDIRECT_URI', 'Redirect URI',
+                esc(cfg.redirect_uri),
+                inputWrap('TESLA_REDIRECT_URI', 'url', ev.TESLA_REDIRECT_URI||'', 'Leave blank for auto-detect',
+                    '', 'Leave blank to auto-detect from the incoming request')
+            )}
+            ${row('TESLA_VINS', 'Vehicle VINs',
+                cfg.vins.length
+                    ? `<div class="vin-list">${cfg.vins.map(v=>`<span class="vin-chip">${esc(v)}</span>`).join('')}</div>`
+                    : muted('No VINs configured'),
+                inputWrap('TESLA_VINS', 'text', ev.TESLA_VINS||'', 'VIN1,VIN2,…',
+                    'normal', 'Comma-separated list of VINs')
+            )}
+            ${row('TESLA_EMAIL', 'Ownership API email',
+                cfg.email_configured
+                    ? esc(cfg.email_masked) + ' &nbsp;' + pill(true,'Configured','')
+                    : pill(false,'','Not set') + `<span class="cfg-note">Required for Premium Connectivity invoices</span>`,
+                inputWrap('TESLA_EMAIL', 'email', ev.TESLA_EMAIL||'', 'your@tesla-account.com', 'normal')
+            )}
+        </div>
+
+        <!-- Invoice settings -->
+        <div class="card">
+            <div class="card-hd">
+                <div class="card-icon icon-green">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                </div>
+                <span class="card-title">Invoice Settings</span>
+            </div>
+            ${row('_invoice_output_dir', 'Output directory',
+                esc(cfg.invoice_output_dir), '', false)}
+            ${row('_auth_dir', 'Config / Auth directory',
+                esc(cfg.auth_dir), '', false)}
+            ${row('INVOICE_NAME_PATTERN', 'Filename pattern',
+                esc(cfg.invoice_name_pattern) +
+                `<span class="cfg-note">Placeholders: {date} · {label} · {name} · {id}</span>`,
+                inputWrap('INVOICE_NAME_PATTERN', 'text', ev.INVOICE_NAME_PATTERN||'',
+                    '{date} - Tesla - {label} {name}', '',
+                    'Placeholders: {date} · {label} · {name} · {id} — saving will offer to rename existing files')
+            )}
+        </div>
+
+        <!-- Email notifications -->
+        <div class="card">
+            <div class="card-hd">
+                <div class="card-icon icon-orange">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                </div>
+                <span class="card-title">Email Notifications</span>
+            </div>
+            ${row('SMTP_HOST', 'SMTP Host',
+                cfg.smtp_host ? esc(cfg.smtp_host) : muted('Not configured'),
+                inputWrap('SMTP_HOST', 'text', ev.SMTP_HOST||'', 'smtp.example.com', 'normal')
+            )}
+            ${row('SMTP_PORT', 'SMTP Port',
+                esc(ev.SMTP_PORT || '587'),
+                inputWrap('SMTP_PORT', 'number', ev.SMTP_PORT||'587', '587', 'normal')
+            )}
+            ${row('SMTP_USER', 'SMTP User',
+                ev.SMTP_USER ? esc(ev.SMTP_USER) : muted('Not configured'),
+                inputWrap('SMTP_USER', 'text', ev.SMTP_USER||'', 'user@example.com', 'normal')
+            )}
+            ${row('SMTP_PASSWORD', 'SMTP Password',
+                pill(cfg.smtp_password_configured, 'Configured (write-only)', 'Not set'),
+                inputWrap('SMTP_PASSWORD', 'password', '', 'Leave blank to keep current value',
+                    '', 'Leave blank to keep the existing password')
+            )}
+            ${row('EMAIL_FROM', 'From email',
+                cfg.email_from_masked ? esc(cfg.email_from_masked) : muted('Not configured'),
+                inputWrap('EMAIL_FROM', 'email', ev.EMAIL_FROM||'', 'from@example.com', 'normal')
+            )}
+            ${row('EMAIL_TO', 'To email',
+                cfg.email_to_masked ? esc(cfg.email_to_masked) : muted('Not configured'),
+                inputWrap('EMAIL_TO', 'email', ev.EMAIL_TO||'', 'to@example.com', 'normal')
+            )}
+        </div>
+
+        <!-- App protection -->
+        <div class="card">
+            <div class="card-hd">
+                <div class="card-icon icon-purple">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                </div>
+                <span class="card-title">App Protection</span>
+            </div>
+            <div class="cfg-row">
+                <span class="cfg-label">Status</span>
+                <div class="cfg-value-wrap">
+                    <div class="cfg-display normal">
+                        ${cfg.oidc_enabled
+                            ? pill(true, 'Built-in OIDC active', '')
+                            : `<span class="pill pill-neutral"><span class="dot dot-gray"></span>Open access</span>`}
+                        <span class="cfg-note">${cfg.oidc_enabled
+                            ? 'All pages require login via your OIDC provider'
+                            : 'Set OIDC_ENABLED to enable built-in login, or use Authentik reverse proxy'}</span>
+                    </div>
+                </div>
+                <div class="edit-btn-placeholder"></div>
+            </div>
+            <div class="info-box info-green" style="margin-top:4px">
+                <div class="info-title">Option A — Authentik Reverse Proxy (no config needed)</div>
+                <div class="info-body">
+                    Place this app behind an <strong>Authentik outpost</strong> in proxy mode. No settings below required.<br><br>
+                    1. In Authentik, create a <strong>Proxy Provider</strong> → <em>Forward auth (single application)</em><br>
+                    2. Set the external host to your app's public URL<br>
+                    3. Assign to an <strong>Application</strong> and deploy an <strong>Outpost</strong><br>
+                    4. Point your reverse proxy (Nginx / Traefik / Caddy) to authenticate via the outpost
+                </div>
+            </div>
+            <div class="info-box" style="margin-top:0;margin-bottom:4px">
+                <div class="info-title">Option B — Built-in OIDC login</div>
+                <div class="info-body">
+                    Fill in the settings below and set <code>OIDC_ENABLED=true</code> to require login via any OIDC provider (Authentik, Keycloak, etc.).<br>
+                    Set <code>SECRET_KEY</code> in your .env to keep sessions alive across restarts.
+                </div>
+            </div>
+            ${row('OIDC_ENABLED', 'Enable OIDC',
+                cfg.oidc_enabled
+                    ? pill(true, 'Enabled', '')
+                    : `<span class="pill pill-neutral"><span class="dot dot-gray"></span>Disabled</span>`,
+                selectWrap('OIDC_ENABLED', ev.OIDC_ENABLED||'', {'':'Disabled','true':'Enabled'})
+            )}
+            ${row('OIDC_ISSUER', 'Issuer URL',
+                cfg.oidc_issuer_configured
+                    ? pill(true, 'Configured', 'Not set') + `<span class="cfg-note">${esc(ev.OIDC_ISSUER||'')}</span>`
+                    : pill(false, '', 'Not set'),
+                inputWrap('OIDC_ISSUER', 'url', ev.OIDC_ISSUER||'', 'https://authentik.example.com/application/o/app-slug',
+                    'normal', 'Base URL of your OIDC provider (without /.well-known/…)')
+            )}
+            ${row('OIDC_CLIENT_ID', 'Client ID',
+                cfg.oidc_client_id_configured
+                    ? pill(true, 'Configured', 'Not set') + `<span class="cfg-note">${esc(ev.OIDC_CLIENT_ID||'')}</span>`
+                    : pill(false, '', 'Not set'),
+                inputWrap('OIDC_CLIENT_ID', 'text', ev.OIDC_CLIENT_ID||'', 'Your OIDC client ID')
+            )}
+            ${row('OIDC_CLIENT_SECRET', 'Client Secret',
+                pill(cfg.oidc_secret_configured, 'Configured (write-only)', 'Not set'),
+                inputWrap('OIDC_CLIENT_SECRET', 'password', '', 'Leave blank to keep current value',
+                    '', 'Leave blank to keep the existing secret')
+            )}
+            ${row('OIDC_REDIRECT_URI', 'Redirect URI',
+                esc(ev.OIDC_REDIRECT_URI || '(auto-detect from request)'),
+                inputWrap('OIDC_REDIRECT_URI', 'url', ev.OIDC_REDIRECT_URI||'', 'Leave blank for auto-detect',
+                    'normal', 'Must match the redirect URI registered in your OIDC provider')
+            )}
+        </div>
+
+        <!-- App info -->
+        <div class="card">
+            <div class="card-hd">
+                <div class="card-icon icon-gray">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                </div>
+                <span class="card-title">App Info</span>
+            </div>
+            ${row('_version', 'Version', pillN('v'+cfg.version), '', false)}
+            ${row('_source', 'Source',
+                `<a href="https://github.com/Kevinengelen1/tesla-invoice-fetcher" target="_blank"
+                    style="color:#2563eb;font-size:13px;font-family:inherit">
+                    github.com/Kevinengelen1/tesla-invoice-fetcher
+                </a>`, '', false)}
+        </div>
+    `;
+}
+
+load();
+</script>
+</body>
+</html>

@@ -28,14 +28,30 @@
                   border-bottom: 1px solid rgba(255,255,255,.05); }
         .topbar-logo { width: 30px; height: 30px; background: var(--red); border-radius: 7px;
                        display: flex; align-items: center; justify-content: center;
-                       font-size: 16px; font-weight: 900; color: #fff; flex-shrink: 0; }
-        .topbar-title { font-size: 15px; font-weight: 600; letter-spacing: -.2px; }
-        .topbar-div   { width: 1px; height: 16px; background: #2f2f2f; }
-        .topbar-sub   { font-size: 13px; color: #6b7280; }
+                       font-size: 16px; font-weight: 900; color: #fff; flex-shrink: 0; text-decoration: none; }
+        .topbar-title { font-size: 15px; font-weight: 600; letter-spacing: -.2px; white-space: nowrap; }
+        .topbar-div   { width: 1px; height: 16px; background: #2f2f2f; flex-shrink: 0; }
+        .topbar-nav   { display: flex; align-items: center; gap: 4px; }
+        .nav-link     { font-size: 13px; font-weight: 500; color: #9ca3af; text-decoration: none;
+                        padding: 6px 12px; border-radius: 7px; transition: all .15s; }
+        .nav-link:hover   { color: #fff; background: rgba(255,255,255,.06); }
+        .nav-link.active  { color: #fff; background: rgba(255,255,255,.1); }
+        .topbar-spacer { flex: 1; }
+        .version-badge { font-size: 11px; font-weight: 600; color: #4b5563;
+                         background: #1f2937; padding: 3px 9px; border-radius: 20px;
+                         letter-spacing: .3px; white-space: nowrap; }
 
         /* -- Layout -- */
-        .container { max-width: 840px; margin: 0 auto; padding: 28px 20px 64px;
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px 20px 64px;
                      display: flex; flex-direction: column; gap: 14px; }
+
+        /* -- Stats strip -- */
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+        .stat  { background: var(--card); border-radius: var(--radius); padding: 18px 20px;
+                 box-shadow: var(--shadow); border: 1px solid var(--border); }
+        .stat-val { font-size: 30px; font-weight: 700; line-height: 1; color: var(--text); }
+        .stat-lbl { font-size: 11px; color: var(--light); text-transform: uppercase;
+                    letter-spacing: .8px; margin-top: 6px; }
 
         /* -- Cards -- */
         .card { background: var(--card); border-radius: var(--radius);
@@ -56,7 +72,7 @@
         .btn-primary:active:not(:disabled) { transform: none; box-shadow: none; }
         .btn-primary:disabled { background: #e5e7eb; color: #9ca3af; cursor: not-allowed; }
         .btn-outline { background: transparent; color: var(--muted); border: 1px solid var(--border);
-                       font-size: 12px; padding: 6px 13px; border-radius: 7px; }
+                       font-size: 12px; padding: 6px 13px; border-radius: 7px; cursor: pointer; }
         .btn-outline:hover { background: #f9fafb; color: var(--text); border-color: #d1d5db; }
 
         /* -- Status dots -- */
@@ -131,6 +147,30 @@
                    word-break: break-all; border: 1px solid #21262d; }
         .log-box:empty::after { content: "No logs yet."; color: #3d444d; }
 
+        /* -- Invoice tabs -- */
+        .inv-tabs { display: flex; gap: 4px; padding: 12px 20px 0; border-bottom: 1px solid var(--border); }
+        .inv-tab  { padding: 8px 14px; font-size: 12px; font-weight: 600; color: var(--muted);
+                    border: none; background: none; cursor: pointer; border-radius: 7px 7px 0 0;
+                    border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .15s; }
+        .inv-tab:hover  { color: var(--text); }
+        .inv-tab.active { color: var(--red); border-bottom-color: var(--red); background: none; }
+        .inv-tab-cnt { font-size: 11px; background: #f3f4f6; color: var(--muted);
+                       padding: 1px 7px; border-radius: 10px; margin-left: 5px; font-weight: 500; }
+        .inv-tab.active .inv-tab-cnt { background: #fef2f2; color: var(--red); }
+
+        /* -- Filter bar -- */
+        .filter-bar { padding: 12px 20px; border-bottom: 1px solid var(--border);
+                      display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .filter-input  { flex: 1; min-width: 160px; padding: 7px 12px;
+                         border: 1px solid var(--border); border-radius: 8px;
+                         font-size: 13px; background: var(--bg); color: var(--text);
+                         outline: none; transition: border .15s; }
+        .filter-input:focus  { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.1); }
+        .filter-select { padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px;
+                         font-size: 12px; background: var(--bg); color: var(--muted);
+                         cursor: pointer; outline: none; transition: border .15s; }
+        .filter-select:focus { border-color: #6366f1; }
+
         /* -- Invoice list -- */
         .inv-count { font-size: 12px; color: var(--muted); background: #f3f4f6;
                      padding: 2px 9px; border-radius: 20px; font-weight: 500; }
@@ -161,18 +201,91 @@
         .empty-state { text-align: center; padding: 52px 24px; color: var(--light); }
         .empty-icon  { font-size: 36px; margin-bottom: 12px; opacity: .4; }
         .empty-text  { font-size: 13px; line-height: 1.6; }
+
+        /* -- Footer -- */
+        .footer { text-align: center; padding: 24px; font-size: 12px; color: var(--light); }
+        .footer a { color: var(--light); text-decoration: none; }
+        .footer a:hover { color: var(--muted); }
+
+        /* -- Topbar extras -- */
+        .theme-toggle { background: none; border: 1px solid #2f2f2f; border-radius: 7px;
+                        width: 30px; height: 30px; cursor: pointer; color: #9ca3af;
+                        display: flex; align-items: center; justify-content: center;
+                        transition: all .15s; flex-shrink: 0; padding: 0; }
+        .theme-toggle:hover { color: #fff; border-color: #4b5563; background: rgba(255,255,255,.06); }
+        .topbar-user-name { font-size: 12px; font-weight: 500; color: #e5e7eb;
+                            white-space: nowrap; max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
+        .btn-logout { font-size: 12px; font-weight: 500; color: #9ca3af; background: none;
+                      border: 1px solid #2f2f2f; border-radius: 7px; padding: 5px 10px;
+                      cursor: pointer; transition: all .15s; white-space: nowrap; }
+        .btn-logout:hover { color: #fff; border-color: #4b5563; background: rgba(255,255,255,.06); }
+
+        /* -- Dark mode -- */
+        [data-theme="dark"] {
+            --bg:     #0d1117;
+            --card:   #161b22;
+            --border: #30363d;
+            --text:   #e6edf3;
+            --muted:  #8b949e;
+            --light:  #6e7681;
+            --shadow: 0 1px 3px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.3);
+        }
+        [data-theme="dark"] .topbar { background: #010409; border-bottom-color: rgba(255,255,255,.08); }
+        [data-theme="dark"] .topbar-div { background: #21262d; }
+        [data-theme="dark"] .version-badge { color: #6e7681; background: #21262d; }
+        [data-theme="dark"] code { background: #1c2128; color: var(--muted); }
+        [data-theme="dark"] .badge-ok  { background: #0d2c1e; color: #3fb950; }
+        [data-theme="dark"] .badge-err { background: #2d0e0e; color: #f85149; }
+        [data-theme="dark"] .badge-run { background: #2d1f0e; color: #d29922; }
+        [data-theme="dark"] .banner-ok { background: #0d2c1e; color: #3fb950; border-color: #1a4731; }
+        [data-theme="dark"] .auth-flow { background: #161f2e; border-color: #264366; }
+        [data-theme="dark"] .auth-flow-title { color: #79c0ff; }
+        [data-theme="dark"] .step-n { background: #264366; }
+        [data-theme="dark"] .url-box { background: #0d1117; border-color: #264366; }
+        [data-theme="dark"] .url-box a { color: #79c0ff; }
+        [data-theme="dark"] .paste-row input { background: #0d1117; border-color: #30363d; color: var(--text); }
+        [data-theme="dark"] .paste-row input:focus { border-color: #3b5fc0; }
+        [data-theme="dark"] .inv-row:hover { background: #1c2128; }
+        [data-theme="dark"] .btn-outline { color: var(--muted); border-color: var(--border); }
+        [data-theme="dark"] .btn-outline:hover { background: #21262d; color: var(--text); border-color: #484f58; }
+        [data-theme="dark"] .filter-input  { background: #0d1117; border-color: #30363d; color: var(--text); }
+        [data-theme="dark"] .filter-select { background: #0d1117; border-color: #30363d; color: var(--muted); }
+        [data-theme="dark"] .inv-tab-cnt { background: #21262d; }
+        [data-theme="dark"] .inv-tab.active .inv-tab-cnt { background: #2d1010; }
     </style>
+    <script>(function(){const t=localStorage.getItem('theme');if(t)document.documentElement.setAttribute('data-theme',t);})()</script>
 </head>
 <body>
 
 <header class="topbar">
-    <div class="topbar-logo">T</div>
+    <a class="topbar-logo" href="/">T</a>
     <span class="topbar-title">Invoice Fetcher</span>
     <div class="topbar-div"></div>
-    <span class="topbar-sub">Supercharger & Subscription Invoices</span>
+    <nav class="topbar-nav">
+        <a class="nav-link active" href="/">Dashboard</a>
+        <a class="nav-link" href="/config">Settings</a>
+    </nav>
+    <div class="topbar-spacer"></div>
+    <span class="version-badge">v{{ version }}</span>
+    <span id="topbarUser" style="display:none;align-items:center;gap:8px">
+        <div class="topbar-div"></div>
+        <span class="topbar-user-name" id="topbarUserName"></span>
+        <button class="btn-logout" onclick="fetch('/logout',{method:'POST'}).then(()=>location.reload())">Sign out</button>
+    </span>
+    <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle dark mode">
+        <svg id="themeIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+    </button>
 </header>
 
 <div class="container">
+
+    <!-- -- Stats strip -- -->
+    <div class="stats" id="statsStrip">
+        <div class="stat"><div class="stat-val" id="statTotal">—</div><div class="stat-lbl">Total invoices</div></div>
+        <div class="stat"><div class="stat-val" id="statSupercharger">—</div><div class="stat-lbl">Supercharger</div></div>
+        <div class="stat"><div class="stat-val" id="statPremium">—</div><div class="stat-lbl">Premium Connectivity</div></div>
+        <div class="stat"><div class="stat-val" id="statLastRun">—</div><div class="stat-lbl">Last run</div></div>
+    </div>
 
     <!-- -- Authorization -- -->
     <div class="card">
@@ -184,11 +297,11 @@
             </div>
         </div>
         <div class="auth-flow" id="fleetFlow" style="display:none">
-            <div class="auth-flow-title">Fleet API -- Re-authorization</div>
+            <div class="auth-flow-title">Fleet API — Re-authorization</div>
             <div id="fleetFlowContent"></div>
         </div>
         <div class="auth-flow" id="ownershipFlow" style="display:none">
-            <div class="auth-flow-title">Ownership API -- Re-authorization</div>
+            <div class="auth-flow-title">Ownership API — Re-authorization</div>
             <div id="ownershipFlowContent"></div>
         </div>
     </div>
@@ -228,6 +341,29 @@
             <span class="card-title">Invoices</span>
             <span class="inv-count" id="invoiceCount" style="display:none"></span>
         </div>
+        <div id="invoiceTabs" style="display:none">
+            <div class="inv-tabs">
+                <button class="inv-tab active" data-cat="all" onclick="filterInvoices('all')">
+                    All <span class="inv-tab-cnt" id="tabCntAll">0</span>
+                </button>
+                <button class="inv-tab" data-cat="supercharger" onclick="filterInvoices('supercharger')">
+                    Supercharger <span class="inv-tab-cnt" id="tabCntSupercharger">0</span>
+                </button>
+                <button class="inv-tab" data-cat="premium_connectivity" onclick="filterInvoices('premium_connectivity')">
+                    Premium Connectivity <span class="inv-tab-cnt" id="tabCntPremium">0</span>
+                </button>
+            </div>
+            <div class="filter-bar">
+                <input type="search" id="searchInput" class="filter-input"
+                       placeholder="Search invoices…" oninput="applyFilters()">
+                <select id="sortSelect" class="filter-select" onchange="applyFilters()">
+                    <option value="date-desc">Newest first</option>
+                    <option value="date-asc">Oldest first</option>
+                    <option value="name-asc">Name A → Z</option>
+                    <option value="name-desc">Name Z → A</option>
+                </select>
+            </div>
+        </div>
         <div id="invoiceList">
             <div class="empty-state">
                 <div class="empty-icon">&#x1F4C4;</div>
@@ -238,9 +374,46 @@
 
 </div>
 
+<footer class="footer">
+    Tesla Invoice Fetcher v{{ version }} &nbsp;&middot;&nbsp;
+    <a href="https://github.com/Kevinengelen1/tesla-invoice-fetcher" target="_blank">GitHub</a>
+</footer>
+
 <script>
     let polling = null;
     let logOpen = false;
+    let allInvoices = [];
+    let activeFilter = 'all';
+
+    // -- Dark mode --
+    const sunSvg  = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
+    const moonSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>`;
+
+    function updateThemeIcon(theme) {
+        document.getElementById('themeIcon').outerHTML =
+            (theme === 'dark' ? sunSvg : moonSvg).replace('<svg ', '<svg id="themeIcon" ');
+    }
+    function toggleTheme() {
+        const cur = document.documentElement.getAttribute('data-theme') || 'light';
+        const next = cur === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('theme', next);
+        updateThemeIcon(next);
+    }
+    updateThemeIcon(document.documentElement.getAttribute('data-theme') || 'light');
+
+    // -- User info --
+    async function loadUser() {
+        try {
+            const me = await fetch('/api/me').then(r => r.json());
+            if (me.oidc_enabled && me.user) {
+                const el = document.getElementById('topbarUser');
+                document.getElementById('topbarUserName').textContent = me.user.name || me.user.email || 'User';
+                el.style.display = 'flex';
+            }
+        } catch(_) {}
+    }
+    loadUser();
 
     // -- Log toggle --
     function toggleLog(force) {
@@ -273,6 +446,7 @@
                 document.getElementById('statusText').innerHTML =
                     `<span class="badge badge-ok"><span class="dot dot-green"></span>${n} new invoice${n!==1?'s':''}</span>`+
                     `<span style="font-size:12px;color:var(--light);margin-left:10px">${data.last_run}</span>`;
+                document.getElementById('statLastRun').textContent = data.last_run.split(' ')[0];
             } else {
                 document.getElementById('statusText').innerHTML =
                     `<span class="badge badge-err"><span class="dot dot-red"></span>Error</span>`+
@@ -290,39 +464,104 @@
     }
 
     async function loadInvoices() {
-        const invoices = await fetch('/api/invoices').then(r => r.json());
+        allInvoices = await fetch('/api/invoices').then(r => r.json());
+        updateStats();
+        renderInvoices(activeFilter);
+    }
+
+    function updateStats() {
+        const sc = allInvoices.filter(i => i.category === 'supercharger').length;
+        const pc = allInvoices.filter(i => i.category === 'premium_connectivity').length;
+        document.getElementById('statTotal').textContent = allInvoices.length;
+        document.getElementById('statSupercharger').textContent = sc;
+        document.getElementById('statPremium').textContent = pc;
+        document.getElementById('tabCntAll').textContent = allInvoices.length;
+        document.getElementById('tabCntSupercharger').textContent = sc;
+        document.getElementById('tabCntPremium').textContent = pc;
+    }
+
+    function filterInvoices(cat) {
+        activeFilter = cat;
+        document.querySelectorAll('.inv-tab').forEach(t => t.classList.toggle('active', t.dataset.cat === cat));
+        applyFilters();
+    }
+
+    function applyFilters() {
+        const query = (document.getElementById('searchInput')?.value || '').toLowerCase().trim();
+        const sort  = document.getElementById('sortSelect')?.value || 'date-desc';
+
+        let filtered = activeFilter === 'all'
+            ? allInvoices
+            : allInvoices.filter(i => i.category === activeFilter);
+
+        if (query) filtered = filtered.filter(i => i.name.toLowerCase().includes(query));
+
+        filtered = [...filtered].sort((a, b) => {
+            if (sort === 'date-desc') return b.modified.localeCompare(a.modified);
+            if (sort === 'date-asc')  return a.modified.localeCompare(b.modified);
+            if (sort === 'name-asc')  return a.name.localeCompare(b.name);
+            if (sort === 'name-desc') return b.name.localeCompare(a.name);
+            return 0;
+        });
+
+        renderInvoiceList(filtered, !!query);
+    }
+
+    function renderInvoices(cat) {
+        activeFilter = cat;
+        applyFilters();
+    }
+
+    function renderInvoiceList(filtered, isSearching) {
         const container = document.getElementById('invoiceList');
         const countEl   = document.getElementById('invoiceCount');
+        const tabsEl    = document.getElementById('invoiceTabs');
 
-        if (!invoices.length) {
+        if (!allInvoices.length) {
             container.innerHTML = `<div class="empty-state">
                 <div class="empty-icon">&#x1F4C4;</div>
                 <div class="empty-text">No invoices downloaded yet.<br>Run the fetcher to get started.</div>
             </div>`;
             countEl.style.display = 'none';
+            tabsEl.style.display = 'none';
             return;
         }
 
-        countEl.textContent = invoices.length + ' total';
+        tabsEl.style.display = '';
+        countEl.textContent = filtered.length + ' invoice' + (filtered.length !== 1 ? 's' : '');
         countEl.style.display = '';
 
-        const groups = {};
-        for (const inv of invoices) (groups[inv.category] ??= []).push(inv);
+        if (!filtered.length) {
+            container.innerHTML = `<div class="empty-state">
+                <div class="empty-icon">&#x1F4C4;</div>
+                <div class="empty-text">${isSearching ? 'No invoices match your search.' : 'No invoices in this category.'}</div>
+            </div>`;
+            return;
+        }
 
         const labels = { supercharger: 'Supercharger', premium_connectivity: 'Premium Connectivity' };
+
+        // When searching/sorting across categories, flatten into one group
+        const groups = isSearching && activeFilter === 'all'
+            ? { _all: filtered }
+            : (() => { const g = {}; for (const inv of filtered) (g[inv.category] ??= []).push(inv); return g; })();
 
         const pdfSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="inv-icon"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>`;
         const dlSvg  = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 12-4-4m4 4 4-4"/><path d="M2 17l.621 2.485A2 2 0 004.561 21h14.878a2 2 0 001.94-1.515L22 17"/></svg>`;
 
         let html = '<div class="inv-body">';
-        for (const [cat, items] of Object.entries(groups)) {
-            const lbl = labels[cat] || cat.replace(/_/g,' ');
-            html += `<div>
-                <div class="inv-group-hd">
-                    <span class="inv-group-lbl">${lbl}</span>
-                    <span class="inv-group-cnt">${items.length} invoice${items.length!==1?'s':''}</span>
-                </div>
-                <div class="inv-list">`;
+        for (const [grp, items] of Object.entries(groups)) {
+            const lbl = grp === '_all' ? null : (labels[grp] || grp.replace(/_/g,' '));
+            if (lbl) {
+                html += `<div>
+                    <div class="inv-group-hd">
+                        <span class="inv-group-lbl">${lbl}</span>
+                        <span class="inv-group-cnt">${items.length} invoice${items.length!==1?'s':''}</span>
+                    </div>
+                    <div class="inv-list">`;
+            } else {
+                html += `<div><div class="inv-list">`;
+            }
             for (const inv of items) {
                 const stem = inv.name.replace(/\.pdf$/i, '');
                 html += `<div class="inv-row">
@@ -332,7 +571,7 @@
                         <div class="inv-meta">${inv.modified} &middot; ${fmtSize(inv.size)}</div>
                     </div>
                     <a class="btn-dl" href="/invoices/${inv.path}" download>
-                        ${dlSvg}&nbsp;Download PDF
+                        ${dlSvg}&nbsp;Download
                     </a>
                 </div>`;
             }
@@ -343,14 +582,12 @@
 
     // -- Auth status --
     async function loadAuthStatus() {
-        // Proactively try to refresh any expired tokens before checking status
         await fetch('/api/auth/refresh', { method: 'POST' }).catch(() => {});
-
         const auth = await fetch('/api/auth').then(r => r.json());
 
         function statusHtml(valid, hasData, expires) {
             if (valid)   return `<span class="dot dot-green"></span>Authorized${expires?`<span class="auth-expiry">expires ${expires}</span>`:''}`;
-            if (hasData) return `<span class="dot dot-yellow"></span>Token expired -- re-authorization needed`;
+            if (hasData) return `<span class="dot dot-yellow"></span>Token expired — re-authorization needed`;
             return             `<span class="dot dot-red"></span>No token`;
         }
 
@@ -359,8 +596,6 @@
         const needsBoth = needsFleet && needsOwnership;
 
         let html = '';
-
-        // "Authorize Both" when both APIs need auth
         if (needsBoth) {
             html += `<div class="auth-both">
                 <button class="btn btn-primary" onclick="startBothAuth()" style="padding:12px 28px;font-size:14px">
@@ -381,14 +616,12 @@
                 <span class="auth-status">${
                     auth.ownership.configured
                         ? statusHtml(auth.ownership.valid, auth.ownership.has_cache, null)
-                        : `<span class="dot dot-gray"></span><span style="color:var(--light);margin-left:6px">Not configured -- set TESLA_EMAIL in .env</span>`
+                        : `<span class="dot dot-gray"></span><span style="color:var(--light);margin-left:6px">Not configured — set TESLA_EMAIL in .env</span>`
                 }</span>
                 ${auth.ownership.configured ? `<button class="btn btn-outline" onclick="startOwnershipAuth()">Re-authorize</button>` : ''}
             </div>`;
 
         document.getElementById('authRows').innerHTML = html;
-
-        // Store auth state for post-redirect logic
         window._authState = auth;
     }
 
@@ -396,18 +629,15 @@
     async function startFleetAuth() {
         const r = await fetch('/auth/fleet/start', {method:'POST'}).then(r=>r.json());
         if (r.error) { alert('Fleet auth error: ' + r.error); return; }
-
         if (r.auto_redirect) {
-            // Redirect URI points to this app -- navigate directly, auto-redirects back
             window.location.href = r.auth_url;
         } else {
-            // Redirect URI points elsewhere -- show manual paste flow
             document.getElementById('fleetFlow').style.display = '';
             document.getElementById('fleetFlowContent').innerHTML = authFlowHtml(
                 'fleetCallbackInput', 'submitFleetCallback', 'cancelFleetAuth', r.auth_url,
                 'http://localhost:8080/callback?code=...',
                 `After logging in, your browser is redirected to your registered redirect URI.
-                 The page may show a connection error -- that's fine.
+                 The page may show a connection error — that's fine.
                  Copy the <strong>full URL</strong> from the address bar and paste it below.`
             );
         }
@@ -425,7 +655,6 @@
         if (r.status==='success') {
             loadAuthStatus();
             setTimeout(()=>{ document.getElementById('fleetFlow').style.display='none'; }, 2000);
-            // If "both" flow, auto-start ownership
             if (sessionStorage.getItem('pending_ownership_auth') === '1') {
                 sessionStorage.removeItem('pending_ownership_auth');
                 setTimeout(() => autoStartOwnershipIfNeeded(), 2500);
@@ -435,13 +664,11 @@
 
     function cancelFleetAuth() { document.getElementById('fleetFlow').style.display = 'none'; }
 
-    // -- "Authorize Both" flow --
     function startBothAuth() {
         sessionStorage.setItem('pending_ownership_auth', '1');
         startFleetAuth();
     }
 
-    // -- Ownership API auth (always paste flow -- Tesla redirects to void/callback) --
     function authFlowHtml(inputId, submitFn, cancelFn, authUrl, placeholder, hint) {
         return `
             <div class="step">
@@ -497,36 +724,32 @@
 
     function cancelOwnershipAuth() { document.getElementById('ownershipFlow').style.display = 'none'; }
 
-    // -- Auto-start ownership auth if needed (used by "Authorize Both" flow) --
     async function autoStartOwnershipIfNeeded() {
         const auth = await fetch('/api/auth').then(r => r.json());
-        if (auth.ownership.configured && !auth.ownership.valid) {
-            startOwnershipAuth();
-        }
+        if (auth.ownership.configured && !auth.ownership.valid) startOwnershipAuth();
     }
 
     // -- Init --
     loadAuthStatus();
     loadInvoices();
     fetch('/api/status').then(r=>r.json()).then(data => {
-        if (data.last_run)
+        if (data.last_run) {
             document.getElementById('statusText').innerHTML =
                 `<span style="font-size:12px;color:var(--light)">Last run: ${data.last_run}</span>`;
+            document.getElementById('statLastRun').textContent = data.last_run.split(' ')[0];
+        }
         if (data.last_logs?.length) {
             document.getElementById('logBox').textContent = data.last_logs.join('\n');
             toggleLog(true);
         }
     });
 
-    // Handle post-auth redirect (Fleet API auto-callback)
     const authParam = new URLSearchParams(location.search).get('auth');
     if (authParam === 'fleet_ok') {
         history.replaceState({}, '', '/');
         document.getElementById('authBanner').innerHTML =
             '<div class="banner banner-ok"><span class="dot dot-green"></span>Fleet API authorized successfully!</div>';
         setTimeout(() => { document.getElementById('authBanner').innerHTML = ''; }, 5000);
-
-        // If "Authorize Both" flow is active, auto-start Ownership auth
         if (sessionStorage.getItem('pending_ownership_auth') === '1') {
             sessionStorage.removeItem('pending_ownership_auth');
             setTimeout(() => autoStartOwnershipIfNeeded(), 1500);

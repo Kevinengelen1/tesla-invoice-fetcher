@@ -166,8 +166,8 @@ def refresh_fleet_token() -> dict:
         f"{AUTH_BASE}/token",
         json={
             "grant_type": "refresh_token",
-            "client_id": CLIENT_ID,
-            "client_secret": CLIENT_SECRET,
+            "client_id": os.getenv("TESLA_CLIENT_ID", ""),
+            "client_secret": os.getenv("TESLA_CLIENT_SECRET", ""),
             "refresh_token": refresh_token,
         },
         headers={"Content-Type": "application/json"},
@@ -271,8 +271,10 @@ def save_tracking(ids: set) -> None:
 # ---------------------------------------------------------------------------
 def fetch_charging_history(access_token: str, vin: str) -> list[dict]:
     """Fetch Supercharger charging history via Fleet API."""
+    _region = os.getenv("TESLA_REGION", "eu")
+    _fleet_base = FLEET_API_BASES.get(_region, FLEET_API_BASES["eu"])
     resp = requests.get(
-        f"{FLEET_BASE}/api/1/dx/charging/history",
+        f"{_fleet_base}/api/1/dx/charging/history",
         headers=api_headers(access_token),
         params={"vin": vin},
         timeout=30,
@@ -284,8 +286,10 @@ def fetch_charging_history(access_token: str, vin: str) -> list[dict]:
 
 def download_invoice(access_token: str, content_id: str) -> tuple[bytes | None, str | None]:
     """Download an invoice PDF by contentId. Returns (pdf_bytes, filename)."""
+    _region = os.getenv("TESLA_REGION", "eu")
+    _fleet_base = FLEET_API_BASES.get(_region, FLEET_API_BASES["eu"])
     resp = requests.get(
-        f"{FLEET_BASE}/api/1/dx/charging/invoice/{content_id}",
+        f"{_fleet_base}/api/1/dx/charging/invoice/{content_id}",
         headers=api_headers(access_token),
         timeout=30,
     )
@@ -324,7 +328,8 @@ def save_invoice(pdf_bytes: bytes, category: str, filename: str | None, content_
     # Label based on category
     label = "Premium Connectivity" if category == "premium_connectivity" else "Superchargen"
 
-    stem = INVOICE_NAME_PATTERN.format(date=date_formatted, label=label, name=original_name, id=content_id)
+    pattern = os.getenv("INVOICE_NAME_PATTERN", "{date} - Tesla - {label} {name}")
+    stem = pattern.format(date=date_formatted, label=label, name=original_name, id=content_id)
     filepath = folder / f"{stem}.pdf"
     filepath.write_bytes(pdf_bytes)
     log.info("Saved: %s", filepath)
@@ -335,13 +340,19 @@ def save_invoice(pdf_bytes: bytes, category: str, filename: str | None, content_
 # Email
 # ---------------------------------------------------------------------------
 def send_email(subject: str, body: str, attachments: list[Path]) -> None:
-    if not all([SMTP_HOST, SMTP_USER, SMTP_PASSWORD, EMAIL_FROM, EMAIL_TO]):
+    smtp_host = os.getenv("SMTP_HOST", "")
+    smtp_port = int(os.getenv("SMTP_PORT", "587"))
+    smtp_user = os.getenv("SMTP_USER", "")
+    smtp_password = os.getenv("SMTP_PASSWORD", "")
+    email_from = os.getenv("EMAIL_FROM", "")
+    email_to = os.getenv("EMAIL_TO", "")
+    if not all([smtp_host, smtp_user, smtp_password, email_from, email_to]):
         log.info("Email not configured – skipping.")
         return
 
     msg = MIMEMultipart()
-    msg["From"] = EMAIL_FROM
-    msg["To"] = EMAIL_TO
+    msg["From"] = email_from
+    msg["To"] = email_to
     msg["Subject"] = subject
     msg.attach(MIMEText(body, "plain"))
 
@@ -352,12 +363,12 @@ def send_email(subject: str, body: str, attachments: list[Path]) -> None:
         part.add_header("Content-Disposition", f"attachment; filename={filepath.name}")
         msg.attach(part)
 
-    with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+    with smtplib.SMTP(smtp_host, smtp_port) as server:
         server.starttls()
-        server.login(SMTP_USER, SMTP_PASSWORD)
-        server.sendmail(EMAIL_FROM, EMAIL_TO.split(","), msg.as_string())
+        server.login(smtp_user, smtp_password)
+        server.sendmail(email_from, email_to.split(","), msg.as_string())
 
-    log.info("Email sent to %s with %d attachment(s)", EMAIL_TO, len(attachments))
+    log.info("Email sent to %s with %d attachment(s)", email_to, len(attachments))
 
 
 # ---------------------------------------------------------------------------
@@ -365,13 +376,18 @@ def send_email(subject: str, body: str, attachments: list[Path]) -> None:
 # ---------------------------------------------------------------------------
 def run_fetcher() -> list[Path]:
     """Run the invoice fetcher. Returns list of newly downloaded files."""
-    log.info("=== Tesla Invoice Fetcher started ===")
-    log.info("Invoice name pattern: %s", INVOICE_NAME_PATTERN)
+    # Re-read settings from env so web-UI changes apply without container restart
+    client_id = os.getenv("TESLA_CLIENT_ID", "")
+    tesla_vins = [v.strip() for v in os.getenv("TESLA_VINS", "").split(",") if v.strip()]
+    tesla_email = os.getenv("TESLA_EMAIL", "")
 
-    if not CLIENT_ID:
+    log.info("=== Tesla Invoice Fetcher started ===")
+    log.info("Invoice name pattern: %s", os.getenv("INVOICE_NAME_PATTERN", "{date} - Tesla - {label} {name}"))
+
+    if not client_id:
         raise RuntimeError("TESLA_CLIENT_ID not set. Check your .env file.")
 
-    if not TESLA_VINS:
+    if not tesla_vins:
         raise RuntimeError("TESLA_VINS not set. Add your VIN(s) to .env file.")
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -380,9 +396,9 @@ def run_fetcher() -> list[Path]:
 
     # --- Supercharger invoices (Fleet API) ---
     access_token = get_valid_access_token()
-    log.info("Processing %d VIN(s)", len(TESLA_VINS))
+    log.info("Processing %d VIN(s)", len(tesla_vins))
 
-    for vin in TESLA_VINS:
+    for vin in tesla_vins:
         log.info("Fetching charging history for VIN %s ...", vin)
 
         try:
@@ -427,7 +443,7 @@ def run_fetcher() -> list[Path]:
                     downloaded.add(content_id)
 
     # --- Premium Connectivity invoices (Ownership API) ---
-    if TESLA_EMAIL:
+    if tesla_email:
         log.info("Fetching Premium Connectivity invoices ...")
         try:
             owner_token = get_owner_access_token()
