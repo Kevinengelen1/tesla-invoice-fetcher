@@ -12,6 +12,9 @@ Automatically downloads Supercharger and Premium Connectivity invoices from Tesl
 - **Email notifications** — optionally sends new invoices as email attachments
 - **Docker support** for headless / NAS deployment with pre-built images from GHCR
 - **Duplicate tracking** — remembers downloaded invoices to avoid re-downloading
+- **Built-in OIDC login** — protect the dashboard with Authentik, Keycloak, or any OpenID Connect provider
+- **Dark mode** — persisted per-browser via `localStorage`
+- **Invoice filtering & sorting** — client-side search and sort across all invoice categories
 
 ## Quick Start
 
@@ -36,6 +39,7 @@ Edit `.env` and fill in:
 | `TESLA_EMAIL` | For subscriptions | Your Tesla account email |
 | `TESLA_VINS` | Yes | Vehicle VIN(s), comma-separated |
 | `TESLA_REGION` | Yes | `na`, `eu`, or `cn` |
+| `SECRET_KEY` | Recommended | Random string for persistent Flask sessions — generate with `python -c "import secrets; print(secrets.token_hex(32))"`. If omitted, a new key is generated on every restart (all sessions are invalidated). |
 
 ### 3. Install & Run
 
@@ -111,6 +115,45 @@ docker compose pull && docker compose up -d
 
 > **Note:** Tesla's OAuth only accepts `localhost` as a redirect host (private IPs like `192.168.x.x` are rejected). Set `TESLA_REDIRECT_URI=http://localhost:8080/callback` (or whichever localhost URI you registered at developer.tesla.com). When accessing the dashboard from another machine on the LAN, the paste flow is used for Fleet API authorization since the `localhost` redirect can't reach the Flask app from the browser.
 
+## OIDC / SSO Login
+
+The dashboard can be protected with any OpenID Connect provider (Authentik, Keycloak, Auth0, etc.). When enabled, all routes require an active session — unauthenticated visitors are redirected to the provider's login page.
+
+### Environment variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `OIDC_ENABLED` | — | Set to `true` to enable OIDC login guard |
+| `OIDC_ISSUER` | Yes (if enabled) | Provider issuer URL, e.g. `https://auth.example.com/application/o/tesla-invoice-fetcher/` |
+| `OIDC_CLIENT_ID` | Yes (if enabled) | Client ID from the provider |
+| `OIDC_CLIENT_SECRET` | Yes (if enabled) | Client secret from the provider |
+| `OIDC_REDIRECT_URI` | Recommended | Full callback URL, e.g. `https://tif.example.com/auth/oidc/callback`. If omitted the app auto-detects from the incoming request — set this explicitly when behind a reverse proxy. |
+| `SECRET_KEY` | Recommended | Persistent session secret (see above) |
+
+### Setting up with Authentik
+
+1. In Authentik, go to **Applications → Providers → Create** and choose **OAuth2/OpenID Provider**.
+2. Configure the provider:
+   - **Client type**: `Confidential`
+   - **Redirect URIs**: `https://<your-domain>/auth/oidc/callback` (exact match, no trailing slash)
+   - **Scopes**: `openid`, `email`, `profile`
+   - **Subject mode**: `Based on the User's hashed ID` (or `Based on the User's ID`)
+   - Note the **Client ID** and **Client Secret**
+3. Create an **Application** linked to this provider.
+4. Find your **Issuer URL** — it appears in the provider detail page and looks like `https://auth.example.com/application/o/<slug>/`. Verify it by opening `<issuer>/.well-known/openid-configuration` in your browser.
+5. Add to your `.env` (or via the Settings page in the dashboard):
+
+```env
+OIDC_ENABLED=true
+OIDC_ISSUER=https://auth.example.com/application/o/tesla-invoice-fetcher/
+OIDC_CLIENT_ID=<client-id>
+OIDC_CLIENT_SECRET=<client-secret>
+OIDC_REDIRECT_URI=https://tif.example.com/auth/oidc/callback
+SECRET_KEY=<random-hex-string>
+```
+
+> **Reverse proxy note:** Point your reverse proxy (nginx, Caddy, etc.) at the Tesla Invoice Fetcher container — **not** at Authentik. Authentik handles login only during the OAuth redirect flow; the app itself enforces the session guard.
+
 ## CI/CD
 
 The Docker image is automatically built and pushed to GHCR on every push to `main` and on version tags (`v*`). The workflow is defined in [`.github/workflows/docker.yml`](.github/workflows/docker.yml).
@@ -169,7 +212,9 @@ tesla-invoice-fetcher/
 ├── app.py                      # Flask web UI + OAuth flows
 ├── tesla_invoice_fetcher.py    # Core fetching logic
 ├── templates/
-│   └── index.html              # Dashboard frontend
+│   ├── index.html              # Dashboard frontend
+│   ├── config.html             # Settings page
+│   └── login.html              # OIDC login / error page
 ├── tokens.json                 # Unified token storage (auto-created)
 ├── invoices/
 │   ├── .downloaded_invoices.json
