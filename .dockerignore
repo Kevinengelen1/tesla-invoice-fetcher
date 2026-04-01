@@ -1,0 +1,15 @@
+.git/
+.github/
+.vscode/
+node_modules/
+**/node_modules/
+dist/
+packages/*/dist/
+.env
+*.sqlite
+*.sqlite-journal
+data/
+invoices/
+coverage/
+.vite/
+*.log
