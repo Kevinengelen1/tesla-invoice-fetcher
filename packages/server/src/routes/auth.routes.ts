@@ -2,12 +2,12 @@ import { Router, Request, Response, NextFunction } from 'express';
 import passport from 'passport';
 import bcrypt from 'bcrypt';
 import { z } from 'zod';
-import { requireAuth, requireAdmin } from '../auth/guards.js';
+import { requireAuth } from '../auth/guards.js';
 import { validate } from '../middleware/validation.js';
 import { asyncHandler } from '../middleware/async-handler.js';
 import { UserRepo } from '../db/repositories/user.repo.js';
 import { config } from '../config.js';
-import { RequestHandler } from 'express';
+import type { RequestHandler } from 'express';
 
 const loginSchema = z.object({
   username: z.string().min(1).max(100),

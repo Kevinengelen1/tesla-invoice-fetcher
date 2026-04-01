@@ -99,7 +99,7 @@ export async function createApp(adapter: DbAdapter) {
 
   // CSRF token endpoint
   app.get('/api/csrf-token', (req, res) => {
-    const token = generateToken(req, res);
+    const token = generateToken(req);
     res.json({ token });
   });
 

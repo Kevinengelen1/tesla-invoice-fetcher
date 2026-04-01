@@ -130,8 +130,9 @@ export function SettingsPage() {
   const handleChange = (key: string, value: string) => {
     setEdited((prev) => {
       if (SENSITIVE_KEYS.has(key) && value === '') {
-        const { [key]: _removed, ...rest } = prev;
-        return rest;
+        const next = { ...prev };
+        delete next[key];
+        return next;
       }
       return { ...prev, [key]: value };
     });

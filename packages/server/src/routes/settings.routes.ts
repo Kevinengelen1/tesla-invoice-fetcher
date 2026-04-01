@@ -25,7 +25,6 @@ const ENV_ONLY_KEYS = [
   'MYSQL_HOST', 'MYSQL_PORT', 'MYSQL_USER', 'MYSQL_DATABASE',
 ];
 
-const SENSITIVE_ENV_KEYS = new Set(['MYSQL_PASS']);
 const WRITE_ONLY_KEYS = new Set(['SMTP_PASS', 'OIDC_CLIENT_SECRET']);
 
 function createBadRequestError(message: string) {
@@ -93,11 +92,11 @@ export function createSettingsRoutes(settingRepo: SettingRepo): Router {
     await settingRepo.setBulk(updates);
 
     // Reset email transporter when email settings change
-    if (Object.keys(updates).some(k => k.startsWith('EMAIL_') || k.startsWith('SMTP_'))) {
+    if (Object.keys(updates).some((k) => k.startsWith('EMAIL_') || k.startsWith('SMTP_'))) {
       resetTransporter();
     }
 
-    if (Object.keys(updates).some(k => k === 'FETCH_SCHEDULE_CRON' || k === 'AUTO_FETCH_ENABLED')) {
+    if (Object.keys(updates).some((k) => k === 'FETCH_SCHEDULE_CRON' || k === 'AUTO_FETCH_ENABLED')) {
       reloadScheduler();
     }
 

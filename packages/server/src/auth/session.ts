@@ -5,7 +5,6 @@ import path from 'path';
 import { config, getSetting } from '../config.js';
 
 const SQLiteStore = connectSqlite3(session);
-// @ts-ignore – express-mysql-session typings are mismatched with express-session v1
 const MySQLStore = MySQLStoreFactory(session as any);
 
 export function createSessionMiddleware() {

@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { settingsApi, teslaAuthApi, vehicleApi, type TeslaAccountStatus, type Vehicle } from '../lib/api';
 import { useToast } from '../hooks/useToast';
-import { formatDate, formatDateTime } from '../lib/utils';
+import { formatDateTime } from '../lib/utils';
 import { Plus, Trash2, Loader2, X, Car, MapPinned } from 'lucide-react';
 import { SortableHeader, type SortDirection } from '../components/SortableHeader';
 import { sortBy } from '../lib/sort';

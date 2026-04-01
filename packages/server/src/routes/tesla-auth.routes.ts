@@ -16,10 +16,6 @@ import { logStream } from '../services/log-stream.service.js';
 import type { Region } from '../types/models.js';
 import { config } from '../config.js';
 
-const regionSchema = z.object({
-  region: z.enum(['NA', 'EU', 'CN']),
-});
-
 const accountIdSchema = z.object({
   accountId: z.number().int().positive(),
 });

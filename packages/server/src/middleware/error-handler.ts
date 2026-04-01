@@ -1,8 +1,8 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 import { logStream } from '../services/log-stream.service.js';
 import { ZodError } from 'zod';
 
-export function errorHandler(err: Error, req: Request, res: Response, _next: NextFunction) {
+export function errorHandler(err: Error, req: Request, res: Response) {
   logStream.error('Unhandled error', {
     error: err.message,
     stack: err.stack,
@@ -13,7 +13,7 @@ export function errorHandler(err: Error, req: Request, res: Response, _next: Nex
   if (err instanceof ZodError) {
     return res.status(400).json({
       error: 'Validation error',
-      details: err.errors.map(e => ({ path: e.path.join('.'), message: e.message })),
+      details: err.errors.map((e) => ({ path: e.path.join('.'), message: e.message })),
     });
   }
 

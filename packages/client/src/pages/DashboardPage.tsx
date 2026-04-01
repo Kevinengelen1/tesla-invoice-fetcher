@@ -14,7 +14,6 @@ import {
   XCircle,
   AlertTriangle,
   Loader2,
-  ShieldCheck,
   ArrowRight,
   MapPinned,
   ChevronDown,
@@ -137,7 +136,7 @@ export function DashboardPage() {
     try {
       const data = await dashboardApi.stats();
       setStats(data);
-    } catch (err) {
+    } catch {
       toast({ title: 'Failed to load dashboard', variant: 'destructive' });
     } finally {
       setLoading(false);
@@ -413,17 +412,6 @@ export function DashboardPage() {
       standard: 'xl:col-span-2',
       wide: 'xl:col-span-3',
     },
-  };
-
-  const setWidgetSize = (widgetId: DashboardWidgetId, size: DashboardWidgetSize) => {
-    if (!WIDGET_SIZE_OPTIONS[widgetId].includes(size)) {
-      return;
-    }
-
-    setWidgetSizes((currentSizes) => ({
-      ...currentSizes,
-      [widgetId]: size,
-    }));
   };
 
   const startResize = (event: ReactMouseEvent<HTMLElement>, widgetId: DashboardWidgetId) => {

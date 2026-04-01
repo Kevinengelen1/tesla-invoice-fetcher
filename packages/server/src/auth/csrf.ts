@@ -6,7 +6,7 @@ import type { Request, Response, NextFunction } from 'express';
 // x-csrf-token request header for every mutation (non-GET/HEAD/OPTIONS) request.
 // No separate CSRF cookie is needed, so there are no Secure-cookie conflicts.
 
-export function generateToken(req: Request, _res: Response): string {
+export function generateToken(req: Request): string {
   if (!req.session.csrfToken) {
     req.session.csrfToken = randomBytes(32).toString('hex');
   }
