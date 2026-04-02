@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Navigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import { Zap } from 'lucide-react';
@@ -7,9 +8,11 @@ import { Zap } from 'lucide-react';
 export function LoginPage() {
   const { user, loading, login, oidcEnabled } = useAuth();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const oidcError = searchParams.get('error') === 'oidc_failed';
 
   if (loading) {
     return (
@@ -49,6 +52,12 @@ export function LoginPage() {
           <h1 className="text-2xl font-bold">Tesla Invoice Fetcher</h1>
           <p className="text-sm text-muted-foreground">Sign in to manage your invoices</p>
         </div>
+
+        {oidcError ? (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+            SSO login failed. Check the server logs for the OIDC callback error details.
+          </div>
+        ) : null}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">

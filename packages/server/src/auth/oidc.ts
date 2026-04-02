@@ -2,6 +2,7 @@ import { config } from '../config.js';
 import { UserRepo } from '../db/repositories/user.repo.js';
 import { logStream } from '../services/log-stream.service.js';
 import type { Express, Request, Response, NextFunction } from 'express';
+import type { RequestHandler } from 'express';
 
 // Dynamic OIDC setup - loaded on demand when OIDC is enabled
 let oidcClient: any = null;
@@ -27,9 +28,9 @@ async function getOidcClient() {
   }
 }
 
-export function setupOidcRoutes(app: Express, userRepo: UserRepo) {
+export function setupOidcRoutes(app: Express, userRepo: UserRepo, authLimiter: RequestHandler) {
   // Initiate OIDC login
-  app.get('/api/auth/oidc', async (req: Request, res: Response) => {
+  app.get('/api/auth/oidc', authLimiter, async (req: Request, res: Response) => {
     const client = await getOidcClient();
     if (!client) {
       return res.status(503).json({ error: 'OIDC not configured' });
@@ -71,7 +72,7 @@ export function setupOidcRoutes(app: Express, userRepo: UserRepo) {
   });
 
   // OIDC callback
-  app.get('/api/auth/oidc/callback', async (req: Request, res: Response, next: NextFunction) => {
+  app.get('/api/auth/oidc/callback', authLimiter, async (req: Request, res: Response, next: NextFunction) => {
     try {
       const client = await getOidcClient();
       if (!client) {

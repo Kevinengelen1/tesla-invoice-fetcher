@@ -26,11 +26,14 @@ interface RouteDeps {
   settingRepo: SettingRepo;
   tokenManager: TeslaTokenManager;
   fetchJobs: FetchJobService;
+  apiLimiter: RequestHandler;
   authLimiter: RequestHandler;
 }
 
 export function createApiRouter(deps: RouteDeps): Router {
   const router = Router();
+
+  router.use(deps.apiLimiter);
 
   router.use('/auth', createAuthRoutes(deps.userRepo, deps.authLimiter));
   router.use('/users', createUserRoutes(deps.userRepo));

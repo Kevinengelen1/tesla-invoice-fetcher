@@ -1,3 +1,5 @@
+import { mkdir, writeFile } from 'fs/promises';
+import path from 'path';
 import { randomBytes } from 'crypto';
 import bcrypt from 'bcrypt';
 import { UserRepo } from '../db/repositories/user.repo.js';
@@ -17,17 +19,23 @@ export async function bootstrapAdmin(userRepo: UserRepo) {
     role: 'admin',
   });
 
+  const credentialsDir = path.resolve(process.cwd(), 'data');
+  const credentialsPath = path.join(credentialsDir, 'bootstrap-admin-credentials.txt');
+  const credentialsContent = [
+    'FIRST RUN - Admin credentials created',
+    'Username: admin',
+    `Password: ${password}`,
+    'Change the password after logging in via the Users page.',
+    '',
+  ].join('\n');
+
+  await mkdir(credentialsDir, { recursive: true });
+  await writeFile(credentialsPath, credentialsContent, { encoding: 'utf-8', mode: 0o600 });
+
   logStream.info('='.repeat(60));
   logStream.info('  FIRST RUN - Admin credentials created');
   logStream.info(`  Username: admin`);
-  logStream.info(`  Password: ${password}`);
+  logStream.info(`  Credentials file: ${credentialsPath}`);
   logStream.info('  Change the password after logging in via the Users page.');
   logStream.info('='.repeat(60));
-
-  // Also print directly to stdout for visibility
-  console.log('\n' + '='.repeat(60));
-  console.log('  [SETUP] Admin credentials:');
-  console.log(`  Username: admin`);
-  console.log(`  Password: ${password}`);
-  console.log('='.repeat(60) + '\n');
 }

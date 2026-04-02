@@ -24,12 +24,18 @@ export class TeslaAccountRepo {
   }
 
   async update(id: number, data: Partial<{ name: string }>): Promise<void> {
-    const entries = Object.entries(data).filter(([, value]) => value !== undefined);
-    if (!entries.length) return;
-    const fields = entries.map(([key]) => `${key} = ?`).join(', ');
-    const values = entries.map(([, value]) => value);
+    const assignments: string[] = [];
+    const values: unknown[] = [];
+
+    if (Object.prototype.hasOwnProperty.call(data, 'name')) {
+      assignments.push('name = ?');
+      values.push(data.name);
+    }
+
+    if (!assignments.length) return;
+
     const updatedAt = this.db.dialect === 'mysql' ? 'NOW()' : "datetime('now')";
-    await this.db.run(`UPDATE tesla_accounts SET ${fields}, updated_at = ${updatedAt} WHERE id = ?`, [...values, id]);
+    await this.db.run(`UPDATE tesla_accounts SET ${assignments.join(', ')}, updated_at = ${updatedAt} WHERE id = ?`, [...values, id]);
   }
 
   async delete(id: number): Promise<void> {

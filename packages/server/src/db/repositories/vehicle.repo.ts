@@ -49,12 +49,34 @@ export class VehicleRepo {
     return (await this.findById(result.lastId))!;
   }
 
-  async update(id: number, data: Partial<{ vin: string; name: string; region: Region; account_id: number | null; tesla_id: string; enabled: number }>): Promise<void> {
-    const entries = Object.entries(data).filter(([, v]) => v !== undefined);
-    if (!entries.length) return;
-    const fields = entries.map(([k]) => `${k} = ?`).join(', ');
-    const values = entries.map(([, v]) => v);
-    await this.db.run(`UPDATE vehicles SET ${fields} WHERE id = ?`, [...values, id]);
+  async update(id: number, data: Partial<Pick<Vehicle, 'name' | 'region' | 'account_id' | 'enabled'>>): Promise<void> {
+    const assignments: string[] = [];
+    const values: unknown[] = [];
+
+    if (Object.prototype.hasOwnProperty.call(data, 'name')) {
+      assignments.push('name = ?');
+      values.push(data.name ?? null);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(data, 'region')) {
+      assignments.push('region = ?');
+      values.push(data.region);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(data, 'account_id')) {
+      assignments.push('account_id = ?');
+      values.push(data.account_id ?? null);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(data, 'enabled')) {
+      assignments.push('enabled = ?');
+      values.push(data.enabled);
+    }
+
+    if (!assignments.length) return;
+
+    values.push(id);
+    await this.db.run(`UPDATE vehicles SET ${assignments.join(', ')} WHERE id = ?`, values);
   }
 
   async delete(id: number): Promise<void> {

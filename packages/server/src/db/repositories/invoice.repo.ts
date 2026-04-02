@@ -45,16 +45,14 @@ export class InvoiceRepo {
     }
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-    const sortColumn = ['invoice_date', 'vin', 'invoice_type', 'amount_cents', 'site_name', 'energy_kwh', 'created_at']
-      .includes(filter.sort ?? '') ? filter.sort! : 'invoice_date';
-    const sortOrder = filter.order === 'asc' ? 'ASC' : 'DESC';
+    const orderByClause = this.resolveFilterOrderByClause(filter);
     const limit = Math.min(filter.limit ?? 50, 200);
     const offset = ((filter.page ?? 1) - 1) * limit;
 
     const countRow = await this.db.get<{ count: number }>(`SELECT COUNT(*) as count FROM invoices ${where}`, params);
     const total = countRow?.count ?? 0;
     const data = await this.db.all<Invoice>(
-      `SELECT * FROM invoices ${where} ORDER BY ${sortColumn} ${sortOrder} LIMIT ? OFFSET ?`,
+      `SELECT * FROM invoices ${where} ${orderByClause} LIMIT ? OFFSET ?`,
       [...params, limit, offset],
     );
 
@@ -185,6 +183,28 @@ export class InvoiceRepo {
     }
 
     return "DATE_FORMAT(invoice_date, '%Y-%m')";
+  }
+
+  private resolveFilterOrderByClause(filter: InvoiceFilter): string {
+    const direction = filter.order === 'asc' ? 'ASC' : 'DESC';
+
+    switch (filter.sort) {
+      case 'vin':
+        return `ORDER BY vin ${direction}`;
+      case 'invoice_type':
+        return `ORDER BY invoice_type ${direction}`;
+      case 'amount_cents':
+        return `ORDER BY amount_cents ${direction}`;
+      case 'site_name':
+        return `ORDER BY site_name ${direction}`;
+      case 'energy_kwh':
+        return `ORDER BY energy_kwh ${direction}`;
+      case 'created_at':
+        return `ORDER BY created_at ${direction}`;
+      case 'invoice_date':
+      default:
+        return `ORDER BY invoice_date ${direction}`;
+    }
   }
 }
 

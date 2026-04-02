@@ -3,7 +3,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { URL, fileURLToPath } from 'url';
 
 import { config, injectSettingsRepo } from './config.js';
 import { runMigrations } from './db/migrate.js';
@@ -31,8 +31,31 @@ import { FetchJobService } from './services/fetch-job.service.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+function getAllowedCorsOrigins(): Set<string> {
+  const allowed = new Set<string>([
+    'http://localhost:3001',
+    'http://127.0.0.1:3001',
+    'http://localhost:4173',
+    'http://127.0.0.1:4173',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+  ]);
+
+  try {
+    allowed.add(new URL(config.baseUrl).origin);
+  } catch {
+    // Ignore invalid BASE_URL here; configuration validation happens elsewhere.
+  }
+
+  return allowed;
+}
+
 export async function createApp(adapter: DbAdapter) {
   const app = express();
+
+  // When deployed behind a reverse proxy that terminates TLS, trust the first
+  // proxy hop so secure cookies and redirect handling work correctly.
+  app.set('trust proxy', 1);
 
   // Log which database is in use
   if (adapter.dialect === 'mysql') {
@@ -52,6 +75,7 @@ export async function createApp(adapter: DbAdapter) {
   const settingRepo = new SettingRepo(adapter);
   const apiLimiter = createApiLimiter(adapter);
   const authLimiter = createAuthLimiter(adapter);
+  const allowedCorsOrigins = getAllowedCorsOrigins();
 
   // Populate setting cache so getSetting() works synchronously
   await settingRepo.load();
@@ -69,11 +93,16 @@ export async function createApp(adapter: DbAdapter) {
   const fetchJobs = new FetchJobService(orchestrator, fetchRunRepo);
 
   // Security middleware
-  app.use(helmet({
-    contentSecurityPolicy: config.isProduction ? undefined : false,
-  }));
+  app.use(helmet());
   app.use(cors({
-    origin: config.isProduction ? config.baseUrl : true,
+    origin(origin, callback) {
+      if (!origin || allowedCorsOrigins.has(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error('Origin not allowed by CORS'));
+    },
     credentials: true,
   }));
   app.use(express.json({ limit: '1mb' }));
@@ -106,12 +135,9 @@ export async function createApp(adapter: DbAdapter) {
   // Request logging
   app.use(requestLogger);
 
-  // Rate limiting
-  app.use('/api', apiLimiter);
-
   // OIDC routes (set up before API router)
   if (config.oidc.enabled) {
-    setupOidcRoutes(app, userRepo);
+    setupOidcRoutes(app, userRepo, authLimiter);
   }
 
   // API routes
@@ -123,6 +149,7 @@ export async function createApp(adapter: DbAdapter) {
     settingRepo,
     tokenManager,
     fetchJobs,
+    apiLimiter,
     authLimiter,
   }));
 

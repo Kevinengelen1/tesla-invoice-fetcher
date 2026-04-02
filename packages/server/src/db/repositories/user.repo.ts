@@ -34,25 +34,24 @@ export class UserRepo {
   }
 
   async update(id: number, data: { display_name?: string | null; role?: string }): Promise<User> {
-    const updates: string[] = [];
-    const params: unknown[] = [];
+    const hasDisplayName = Object.prototype.hasOwnProperty.call(data, 'display_name');
+    const hasRole = Object.prototype.hasOwnProperty.call(data, 'role');
 
-    if (Object.prototype.hasOwnProperty.call(data, 'display_name')) {
-      updates.push('display_name = ?');
-      params.push(data.display_name ?? null);
-    }
-
-    if (Object.prototype.hasOwnProperty.call(data, 'role')) {
-      updates.push('role = ?');
-      params.push(data.role);
-    }
-
-    if (!updates.length) {
+    if (!hasDisplayName && !hasRole) {
       return (await this.findById(id))!;
     }
 
-    params.push(id);
-    await this.db.run(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, params);
+    if (hasDisplayName && hasRole) {
+      await this.db.run(
+        'UPDATE users SET display_name = ?, role = ? WHERE id = ?',
+        [data.display_name ?? null, data.role, id],
+      );
+    } else if (hasDisplayName) {
+      await this.db.run('UPDATE users SET display_name = ? WHERE id = ?', [data.display_name ?? null, id]);
+    } else {
+      await this.db.run('UPDATE users SET role = ? WHERE id = ?', [data.role, id]);
+    }
+
     return (await this.findById(id))!;
   }
 
